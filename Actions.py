@@ -109,7 +109,7 @@ THEME_SOMBRE = {
     "panneau2": "#192333",
 
     "verre": "#202c3d",
-    "verre_hover": "#2a394d",
+    "verre_hover": "#2b3b50",
 
     "bordure": "#34445a",
 
@@ -154,7 +154,7 @@ theme = THEME_SOMBRE
 
 
 # ============================================================
-# COULEURS DE BASE
+# COULEURS DES COURBES
 # ============================================================
 
 COULEURS_COURBES = [
@@ -167,7 +167,37 @@ COULEURS_COURBES = [
     "#A3E635",
     "#F59EEC",
     "#FFD166",
-    "#7DD3FC"
+    "#7DD3FC",
+    "#FF4D6D",
+    "#00D1B2",
+    "#8A7CFF",
+    "#F97316",
+    "#22C55E",
+    "#EC4899",
+    "#06B6D4",
+    "#EAB308",
+    "#84CC16",
+    "#14B8A6",
+    "#F43F5E",
+    "#6366F1",
+    "#10B981",
+    "#F59E0B",
+    "#D946EF",
+    "#0EA5E9",
+    "#65A30D",
+    "#FB7185",
+    "#2DD4BF",
+    "#A855F7",
+    "#38BDF8",
+    "#4ADE80",
+    "#FACC15",
+    "#C084FC",
+    "#34D399",
+    "#FB923C",
+    "#60A5FA",
+    "#F472B6",
+    "#2DD4BF",
+    "#818CF8"
 ]
 
 
@@ -179,9 +209,7 @@ couleurs_actions = {}
 # ============================================================
 
 donnees_actuelles = {}
-
 lignes = {}
-
 annotations = []
 
 
@@ -193,8 +221,7 @@ fenetre = tk.Tk()
 
 fenetre.title(NOM_APPLICATION)
 
-# Fenêtre légèrement plus petite
-fenetre.geometry("1900x1120")
+fenetre.geometry("1800x1000")
 
 fenetre.minsize(
     1200,
@@ -203,7 +230,7 @@ fenetre.minsize(
 
 
 # ============================================================
-# FOND EN DÉGRADÉ
+# FOND
 # ============================================================
 
 fond = tk.Canvas(
@@ -292,7 +319,7 @@ def dessiner_degrade():
 
 
 # ============================================================
-# CONTENEUR PRINCIPAL
+# CONTENEUR
 # ============================================================
 
 conteneur = tk.Frame(
@@ -322,7 +349,7 @@ entete = tk.Frame(
 
 entete.pack(
     fill="x",
-    pady=(20, 15)
+    pady=(18, 12)
 )
 
 
@@ -342,7 +369,7 @@ titre = tk.Label(
     text="CacVision",
     font=(
         "Segoe UI",
-        34,
+        32,
         "bold"
     ),
     bd=0,
@@ -374,7 +401,7 @@ sous_titre.pack(
 
 
 # ============================================================
-# INDICATEUR EN DIRECT
+# LIVE
 # ============================================================
 
 bloc_live = tk.Frame(
@@ -444,12 +471,12 @@ barre_controles = tk.Frame(
 
 barre_controles.pack(
     fill="x",
-    pady=(0, 18)
+    pady=(0, 15)
 )
 
 
 # ============================================================
-# FONCTION PILULE
+# PILULE
 # ============================================================
 
 def dessiner_pilule(
@@ -506,6 +533,10 @@ def dessiner_pilule(
             tags="pilule"
         )
 
+    # Très important :
+    # la pilule reste derrière le texte
+    canvas.tag_lower("pilule")
+
 
 # ============================================================
 # BOUTON VERRE
@@ -529,6 +560,17 @@ def creer_bouton_verre(
         bg=theme["fond_bas"]
     )
 
+    def obtenir_couleur_verre():
+
+        # On garde un effet "verre"
+        # en mélangeant légèrement le panneau
+        # avec le fond.
+        if theme_sombre:
+
+            return "#1d2838"
+
+        return "#f0f4f9"
+
     def normal():
 
         bouton.configure(
@@ -539,8 +581,17 @@ def creer_bouton_verre(
             bouton,
             largeur,
             hauteur,
-            theme["verre"],
+            obtenir_couleur_verre(),
             theme["bordure"]
+        )
+
+        bouton.itemconfig(
+            texte_id,
+            fill=theme["texte"]
+        )
+
+        bouton.tag_raise(
+            texte_id
         )
 
     def hover():
@@ -557,8 +608,16 @@ def creer_bouton_verre(
             theme["accent2"]
         )
 
-    normal()
+        bouton.itemconfig(
+            texte_id,
+            fill=theme["texte"]
+        )
 
+        bouton.tag_raise(
+            texte_id
+        )
+
+    # Le texte est créé AVANT le dessin de la pilule
     texte_id = bouton.create_text(
         largeur / 2,
         hauteur / 2,
@@ -568,9 +627,10 @@ def creer_bouton_verre(
             "Segoe UI",
             10,
             "bold"
-        ),
-        tags="texte"
+        )
     )
+
+    normal()
 
     bouton.bind(
         "<Enter>",
@@ -587,8 +647,6 @@ def creer_bouton_verre(
         lambda event: commande()
     )
 
-    bouton.pilule_largeur = largeur
-    bouton.pilule_hauteur = hauteur
     bouton.texte_id = texte_id
     bouton.normal = normal
     bouton.hover = hover
@@ -615,7 +673,7 @@ bouton_actions.pack(
 
 
 # ============================================================
-# SÉLECTEUR DE PÉRIODE
+# PÉRIODE
 # ============================================================
 
 label_periode = tk.Label(
@@ -652,24 +710,6 @@ bouton_periode.pack(
 )
 
 
-def dessiner_bouton_periode():
-
-    bouton_periode.configure(
-        bg=theme["fond_bas"]
-    )
-
-    dessiner_pilule(
-        bouton_periode,
-        190,
-        48,
-        theme["verre"],
-        theme["bordure"]
-    )
-
-
-dessiner_bouton_periode()
-
-
 texte_periode = bouton_periode.create_text(
     95,
     24,
@@ -681,6 +721,33 @@ texte_periode = bouton_periode.create_text(
         "bold"
     )
 )
+
+
+def dessiner_bouton_periode():
+
+    bouton_periode.configure(
+        bg=theme["fond_bas"]
+    )
+
+    dessiner_pilule(
+        bouton_periode,
+        190,
+        48,
+        "#1d2838" if theme_sombre else "#f0f4f9",
+        theme["bordure"]
+    )
+
+    bouton_periode.itemconfig(
+        texte_periode,
+        fill=theme["texte"]
+    )
+
+    bouton_periode.tag_raise(
+        texte_periode
+    )
+
+
+dessiner_bouton_periode()
 
 
 menu_periode = None
@@ -803,14 +870,18 @@ bouton_periode.bind(
 
 bouton_periode.bind(
     "<Enter>",
-    lambda event:
+    lambda event: (
         dessiner_pilule(
             bouton_periode,
             190,
             48,
             theme["verre_hover"],
             theme["accent2"]
+        ),
+        bouton_periode.tag_raise(
+            texte_periode
         )
+    )
 )
 
 
@@ -818,6 +889,24 @@ bouton_periode.bind(
     "<Leave>",
     lambda event:
         dessiner_bouton_periode()
+)
+
+
+# ============================================================
+# BOUTON RAFRAÎCHIR
+# ============================================================
+
+bouton_rafraichir = creer_bouton_verre(
+    barre_controles,
+    "↻   Rafraîchir",
+    lambda: actualiser(),
+    160,
+    48
+)
+
+bouton_rafraichir.pack(
+    side="left",
+    padx=(12, 0)
 )
 
 
@@ -871,20 +960,25 @@ cadre_graphique.pack(
 
 
 # ============================================================
-# GRAPHIQUE
+# FIGURE
 # ============================================================
 
-figure, ax = plt.subplots(
+figure = plt.figure(
     figsize=(17, 9.4),
     dpi=180
 )
+
+ax = figure.add_subplot(
+    111
+)
+
+legende_ax = None
 
 
 canvas_graphique = FigureCanvasTkAgg(
     figure,
     master=cadre_graphique
 )
-
 
 widget_graphique = canvas_graphique.get_tk_widget()
 
@@ -908,7 +1002,7 @@ barre_bas = tk.Frame(
 
 barre_bas.pack(
     fill="x",
-    pady=(14, 5)
+    pady=(12, 4)
 )
 
 
@@ -929,204 +1023,21 @@ statut.pack(
 )
 
 
-bouton_actualiser = creer_bouton_verre(
-    barre_bas,
-    "↻   Actualiser",
-    lambda: actualiser(),
-    160,
-    45
-)
-
-bouton_actualiser.pack(
-    side="right"
-)
-
-
 # ============================================================
-# THÈME
+# ORDRE ACTIONS
 # ============================================================
 
-def appliquer_theme():
+def obtenir_ordre_actions():
 
-    global theme
-
-    if theme_sombre:
-        theme = THEME_SOMBRE
-    else:
-        theme = THEME_CLAIR
-
-    # Fenêtre
-    fenetre.configure(
-        bg=theme["fond_bas"]
-    )
-
-    # Fond
-    fond.configure(
-        bg=theme["fond_bas"]
-    )
-
-    # Cadres
-    for cadre in [
-        conteneur,
-        entete,
-        bloc_titre,
-        bloc_live,
-        barre_controles,
-        barre_bas
-    ]:
-
-        cadre.configure(
-            bg=theme["fond_bas"]
-        )
-
-    # Indicateur live
-    point_live.configure(
-        bg=theme["fond_bas"]
-    )
-
-    # Textes
-    titre.configure(
-        bg=theme["fond_bas"],
-        fg=theme["texte"]
-    )
-
-    sous_titre.configure(
-        bg=theme["fond_bas"],
-        fg=theme["texte_secondaire"]
-    )
-
-    label_live.configure(
-        bg=theme["fond_bas"],
-        fg=theme["texte_secondaire"]
-    )
-
-    label_periode.configure(
-        bg=theme["fond_bas"],
-        fg=theme["texte_secondaire"]
-    )
-
-    statut.configure(
-        bg=theme["fond_bas"],
-        fg=theme["texte_secondaire"]
-    )
-
-    # Boutons
-    for bouton in [
-        bouton_actions,
-        bouton_theme,
-        bouton_actualiser
-    ]:
-
-        bouton.configure(
-            bg=theme["fond_bas"]
-        )
-
-        bouton.normal()
-
-        bouton.itemconfig(
-            bouton.texte_id,
-            fill=theme["texte"]
-        )
-
-    # Sélecteur période
-    bouton_periode.configure(
-        bg=theme["fond_bas"]
-    )
-
-    dessiner_bouton_periode()
-
-    bouton_periode.itemconfig(
-        texte_periode,
-        fill=theme["texte"]
-    )
-
-    # Texte du bouton de thème
-    if theme_sombre:
-
-        bouton_theme.itemconfig(
-            bouton_theme.texte_id,
-            text="☀   Clair"
-        )
-
-    else:
-
-        bouton_theme.itemconfig(
-            bouton_theme.texte_id,
-            text="☾   Sombre"
-        )
-
-    # Cadre graphique
-    cadre_graphique.configure(
-        bg=theme["bordure"],
-        highlightbackground=theme["bordure"]
-    )
-
-    dessiner_degrade()
-
-    afficher_graphique(
-        donnees_actuelles
-    )
-
-
-# ============================================================
-# CHANGER DE THÈME
-# ============================================================
-
-def changer_theme():
-
-    global theme_sombre
-
-    theme_sombre = not theme_sombre
-
-    appliquer_theme()
-
-
-# ============================================================
-# TÉLÉCHARGEMENT DES DONNÉES
-# ============================================================
-
-def recuperer_donnees():
-
-    configuration = periodes[
-        periode_actuelle
+    return [
+        nom
+        for nom in actions_cac40
+        if nom in actions_selectionnees
     ]
 
-    donnees = {}
-
-    for nom in actions_selectionnees:
-
-        symbole = actions_cac40[nom]
-
-        try:
-
-            print(
-                f"Téléchargement de {nom}..."
-            )
-
-            data = yf.download(
-                symbole,
-                period=configuration["period"],
-                interval=configuration["interval"],
-                auto_adjust=False,
-                progress=False,
-                threads=False
-            )
-
-            donnees[nom] = data
-
-        except Exception as erreur:
-
-            print(
-                f"Erreur {nom} : {erreur}"
-            )
-
-            donnees[nom] = None
-
-    return donnees
-
 
 # ============================================================
-# CRÉATION DES COULEURS
+# COULEURS ACTIONS
 # ============================================================
 
 def generer_couleurs_actions():
@@ -1135,46 +1046,19 @@ def generer_couleurs_actions():
 
     couleurs_actions = {}
 
-    noms = list(actions_selectionnees)
+    noms = obtenir_ordre_actions()
 
-    nombre = len(noms)
-
-    if nombre == 0:
-        return
-
-    # Pour peu d'actions on garde les jolies couleurs initiales
-    if nombre <= len(COULEURS_COURBES):
-
-        for i, nom in enumerate(noms):
-
-            couleurs_actions[nom] = (
-                COULEURS_COURBES[
-                    i
-                ]
-            )
-
-        return
-
-    # Pour beaucoup d'actions :
-    # génération automatique de couleurs espacées
     for i, nom in enumerate(noms):
 
-        teinte = i / nombre
-
-        couleur = plt.cm.hsv(teinte)
-
         couleurs_actions[nom] = (
-            "#"
-            +
-            "".join(
-                f"{int(v * 255):02x}"
-                for v in couleur[:3]
-            )
+            COULEURS_COURBES[
+                i % len(COULEURS_COURBES)
+            ]
         )
 
 
 # ============================================================
-# AFFICHAGE DU GRAPHIQUE
+# AFFICHAGE GRAPHIQUE
 # ============================================================
 
 def afficher_graphique(donnees):
@@ -1182,6 +1066,9 @@ def afficher_graphique(donnees):
     global donnees_actuelles
     global lignes
     global annotations
+    global couleurs_actions
+    global ax
+    global legende_ax
 
     donnees_actuelles = donnees
 
@@ -1199,11 +1086,120 @@ def afficher_graphique(donnees):
     annotations = []
     lignes = {}
 
-    ax.clear()
+    noms_actions = obtenir_ordre_actions()
 
     # ========================================================
-    # FOND
+    # NOMBRE D'ACTIONS
     # ========================================================
+
+    nombre_selectionne = len(
+        noms_actions
+    )
+
+    # ========================================================
+    # CONFIGURATION LÉGENDE
+    # ========================================================
+
+    if nombre_selectionne <= 4:
+
+        colonnes = max(
+            1,
+            nombre_selectionne
+        )
+
+        taille_texte = 9
+
+    elif nombre_selectionne <= 10:
+
+        colonnes = 5
+        taille_texte = 8
+
+    elif nombre_selectionne <= 20:
+
+        colonnes = 5
+        taille_texte = 7.5
+
+    elif nombre_selectionne <= 30:
+
+        colonnes = 5
+        taille_texte = 7
+
+    else:
+
+        # 40 actions
+        colonnes = 5
+        taille_texte = 6.5
+
+    lignes_legende = max(
+        1,
+        int(
+            np.ceil(
+                max(
+                    1,
+                    nombre_selectionne
+                )
+                / colonnes
+            )
+        )
+    )
+
+    # ========================================================
+    # HAUTEUR ZONE LÉGENDE
+    # ========================================================
+
+    hauteur_legende = (
+        0.10
+        +
+        lignes_legende * 0.028
+    )
+
+    hauteur_legende = max(
+        0.14,
+        min(
+            0.40,
+            hauteur_legende
+        )
+    )
+
+    # ========================================================
+    # RECRÉATION DE LA FIGURE
+    # ========================================================
+
+    figure.clear()
+
+    grille = figure.add_gridspec(
+        2,
+        1,
+        height_ratios=[
+            hauteur_legende,
+            1 - hauteur_legende
+        ],
+        hspace=0.015
+    )
+
+    # ========================================================
+    # ZONE LÉGENDE
+    # ========================================================
+
+    legende_ax = figure.add_subplot(
+        grille[0]
+    )
+
+    legende_ax.set_facecolor(
+        theme["panneau"]
+    )
+
+    legende_ax.axis(
+        "off"
+    )
+
+    # ========================================================
+    # ZONE GRAPHIQUE
+    # ========================================================
+
+    ax = figure.add_subplot(
+        grille[1]
+    )
 
     ax.set_facecolor(
         theme["panneau"]
@@ -1223,9 +1219,11 @@ def afficher_graphique(donnees):
     # COURBES
     # ========================================================
 
-    for nom in actions_selectionnees:
+    for nom in noms_actions:
 
-        data = donnees.get(nom)
+        data = donnees.get(
+            nom
+        )
 
         if data is None:
             continue
@@ -1256,15 +1254,16 @@ def afficher_graphique(donnees):
                 dtype=float
             )
 
-            couleur = couleurs_actions[nom]
+            couleur = couleurs_actions[
+                nom
+            ]
 
-            # Ligne principale
             ligne, = ax.plot(
                 dates,
                 valeurs,
                 color=couleur,
-                linewidth=1.5,
-                alpha=0.94,
+                linewidth=1.45,
+                alpha=0.95,
                 solid_capstyle="round",
                 solid_joinstyle="round",
                 antialiased=True,
@@ -1272,18 +1271,18 @@ def afficher_graphique(donnees):
                 label=nom
             )
 
-            # Halo
+            # Halo discret
             ax.plot(
                 dates,
                 valeurs,
                 color=couleur,
-                linewidth=4.5,
+                linewidth=4,
                 alpha=0.025,
                 solid_capstyle="round",
                 antialiased=True
             )
 
-            # Points discrets
+            # Points
             if len(dates) < 250:
 
                 ax.scatter(
@@ -1309,25 +1308,50 @@ def afficher_graphique(donnees):
             )
 
     # ========================================================
-    # NOMBRE D'ACTIONS
-    # ========================================================
-
-    nombre_actions = len(
-        lignes
-    )
-
-    # ========================================================
     # TITRE
     # ========================================================
 
-    ax.set_title(
+    legende_ax.text(
+        0.01,
+        0.92,
         periode_actuelle,
+        transform=legende_ax.transAxes,
+        ha="left",
+        va="top",
         color=theme["texte"],
         fontsize=15,
-        fontweight="bold",
-        loc="left",
-        pad=10
+        fontweight="bold"
     )
+
+    # ========================================================
+    # LÉGENDE
+    # ========================================================
+
+    if lignes:
+
+        handles, labels = (
+            ax.get_legend_handles_labels()
+        )
+
+        legende = legende_ax.legend(
+            handles,
+            labels,
+            loc="center",
+            ncol=colonnes,
+            frameon=False,
+            fontsize=taille_texte,
+            handlelength=1.8,
+            handletextpad=0.4,
+            columnspacing=1.3,
+            labelspacing=0.45,
+            borderaxespad=0
+        )
+
+        for texte in legende.get_texts():
+
+            texte.set_color(
+                theme["texte"]
+            )
 
     # ========================================================
     # AXES
@@ -1355,8 +1379,6 @@ def afficher_graphique(donnees):
         locator
     )
 
-    # Supprime les indications supplémentaires
-    # qui peuvent apparaître au bord du graphique
     formatter.offset_formats = [
         "",
         "%Y",
@@ -1405,7 +1427,7 @@ def afficher_graphique(donnees):
         colors=theme["texte_secondaire"],
         labelsize=8,
         length=0,
-        pad=7
+        pad=8
     )
 
     ax.tick_params(
@@ -1425,129 +1447,45 @@ def afficher_graphique(donnees):
         bordure.set_visible(False)
 
     # ========================================================
-    # LÉGENDE ADAPTATIVE
-    # ========================================================
-
-    if lignes:
-
-        if nombre_actions <= 4:
-
-            colonnes = nombre_actions
-            taille_texte = 9
-
-        elif nombre_actions <= 10:
-
-            colonnes = 5
-            taille_texte = 8
-
-        elif nombre_actions <= 20:
-
-            colonnes = 5
-            taille_texte = 7.5
-
-        elif nombre_actions <= 30:
-
-            colonnes = 6
-            taille_texte = 7
-
-        else:
-
-            # Pour les 40 actions
-            colonnes = 8
-            taille_texte = 6.5
-
-        nombre_lignes_legende = int(
-            np.ceil(
-                nombre_actions / colonnes
-            )
-        )
-
-        legende = ax.legend(
-            loc="upper center",
-            bbox_to_anchor=(
-                0.5,
-                1.015
-            ),
-            frameon=False,
-            fontsize=taille_texte,
-            ncol=colonnes,
-            handlelength=2.0,
-            handletextpad=0.45,
-            columnspacing=1.3,
-            labelspacing=0.55,
-            borderaxespad=0
-        )
-
-        for texte in legende.get_texts():
-
-            texte.set_color(
-                theme["texte"]
-            )
-
-    # ========================================================
-    # DERNIÈRE MISE À JOUR
+    # MISE À JOUR
     # ========================================================
 
     heure = datetime.now().strftime(
         "%H:%M:%S"
     )
 
-    ax.text(
-        0.0,
-        -0.13,
+    figure.text(
+        0.065,
+        0.025,
         f"Mise à jour : {heure}",
-        transform=ax.transAxes,
         ha="left",
-        va="top",
+        va="bottom",
         color=theme["texte_secondaire"],
         fontsize=8
     )
 
     # ========================================================
-    # ESPACEMENT AUTOMATIQUE
+    # ESPACEMENTS
     # ========================================================
-
-    if nombre_actions <= 4:
-
-        haut = 0.84
-
-    elif nombre_actions <= 10:
-
-        haut = 0.78
-
-    elif nombre_actions <= 20:
-
-        haut = 0.71
-
-    elif nombre_actions <= 30:
-
-        haut = 0.65
-
-    else:
-
-        # 40 actions :
-        # grande zone réservée à la légende
-        haut = 0.58
 
     figure.subplots_adjust(
         left=0.065,
         right=0.985,
-        top=haut,
-        bottom=0.17
+        top=0.985,
+        bottom=0.105
     )
 
     canvas_graphique.draw_idle()
 
 
 # ============================================================
-# SURVOL DU GRAPHIQUE
+# SURVOL GRAPHIQUE
 # ============================================================
 
 def afficher_info_souris(event):
 
     global annotations
 
-    # Supprime l'ancien tooltip
     for annotation in annotations:
 
         try:
@@ -1608,7 +1546,9 @@ def afficher_info_souris(event):
                 )
             )
 
-            distance = distances[index]
+            distance = distances[
+                index
+            ]
 
             if distance < meilleure_distance:
 
@@ -1624,7 +1564,6 @@ def afficher_info_souris(event):
                 )
 
         except:
-
             pass
 
     if (
@@ -1663,7 +1602,7 @@ def afficher_info_souris(event):
             facecolor=theme["panneau2"],
             edgecolor=couleur,
             linewidth=1.2,
-            alpha=0.97
+            alpha=0.98
         ),
         arrowprops=dict(
             arrowstyle="-",
@@ -1691,9 +1630,13 @@ canvas_graphique.mpl_connect(
 
 def actualiser():
 
-    bouton_actualiser.itemconfig(
-        bouton_actualiser.texte_id,
+    bouton_rafraichir.itemconfig(
+        bouton_rafraichir.texte_id,
         text="↻   Chargement..."
+    )
+
+    bouton_rafraichir.tag_raise(
+        bouton_rafraichir.texte_id
     )
 
     statut.configure(
@@ -1722,6 +1665,50 @@ def actualiser():
 
 
 # ============================================================
+# RÉCUPÉRATION
+# ============================================================
+
+def recuperer_donnees():
+
+    configuration = periodes[
+        periode_actuelle
+    ]
+
+    donnees = {}
+
+    for nom in obtenir_ordre_actions():
+
+        symbole = actions_cac40[nom]
+
+        try:
+
+            print(
+                f"Téléchargement de {nom}..."
+            )
+
+            data = yf.download(
+                symbole,
+                period=configuration["period"],
+                interval=configuration["interval"],
+                auto_adjust=False,
+                progress=False,
+                threads=False
+            )
+
+            donnees[nom] = data
+
+        except Exception as erreur:
+
+            print(
+                f"Erreur {nom} : {erreur}"
+            )
+
+            donnees[nom] = None
+
+    return donnees
+
+
+# ============================================================
 # FIN ACTUALISATION
 # ============================================================
 
@@ -1731,9 +1718,13 @@ def terminer_actualisation(donnees):
         donnees
     )
 
-    bouton_actualiser.itemconfig(
-        bouton_actualiser.texte_id,
-        text="↻   Actualiser"
+    bouton_rafraichir.itemconfig(
+        bouton_rafraichir.texte_id,
+        text="↻   Rafraîchir"
+    )
+
+    bouton_rafraichir.tag_raise(
+        bouton_rafraichir.texte_id
     )
 
     heure = datetime.now().strftime(
@@ -1746,7 +1737,7 @@ def terminer_actualisation(donnees):
 
 
 # ============================================================
-# SÉLECTION DES ACTIONS
+# SÉLECTION ACTIONS
 # ============================================================
 
 def ouvrir_selection_actions():
@@ -1947,6 +1938,7 @@ def ouvrir_selection_actions():
     def selectionner_tout():
 
         for variable in variables.values():
+
             variable.set(True)
 
     bouton_tout = creer_bouton_verre(
@@ -1964,6 +1956,7 @@ def ouvrir_selection_actions():
     def deselectionner_tout():
 
         for variable in variables.values():
+
             variable.set(False)
 
     bouton_aucun = creer_bouton_verre(
@@ -2021,6 +2014,133 @@ def ouvrir_selection_actions():
 
 
 # ============================================================
+# THÈME
+# ============================================================
+
+def appliquer_theme():
+
+    global theme
+
+    if theme_sombre:
+
+        theme = THEME_SOMBRE
+
+    else:
+
+        theme = THEME_CLAIR
+
+    fenetre.configure(
+        bg=theme["fond_bas"]
+    )
+
+    fond.configure(
+        bg=theme["fond_bas"]
+    )
+
+    for cadre in [
+        conteneur,
+        entete,
+        bloc_titre,
+        bloc_live,
+        barre_controles,
+        barre_bas
+    ]:
+
+        cadre.configure(
+            bg=theme["fond_bas"]
+        )
+
+    point_live.configure(
+        bg=theme["fond_bas"]
+    )
+
+    titre.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte"]
+    )
+
+    sous_titre.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte_secondaire"]
+    )
+
+    label_live.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte_secondaire"]
+    )
+
+    label_periode.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte_secondaire"]
+    )
+
+    statut.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte_secondaire"]
+    )
+
+    for bouton in [
+        bouton_actions,
+        bouton_rafraichir,
+        bouton_theme
+    ]:
+
+        bouton.configure(
+            bg=theme["fond_bas"]
+        )
+
+        bouton.normal()
+
+    bouton_periode.configure(
+        bg=theme["fond_bas"]
+    )
+
+    dessiner_bouton_periode()
+
+    if theme_sombre:
+
+        bouton_theme.itemconfig(
+            bouton_theme.texte_id,
+            text="☀   Clair"
+        )
+
+    else:
+
+        bouton_theme.itemconfig(
+            bouton_theme.texte_id,
+            text="☾   Sombre"
+        )
+
+    bouton_theme.tag_raise(
+        bouton_theme.texte_id
+    )
+
+    cadre_graphique.configure(
+        bg=theme["bordure"],
+        highlightbackground=theme["bordure"]
+    )
+
+    dessiner_degrade()
+
+    afficher_graphique(
+        donnees_actuelles
+    )
+
+
+# ============================================================
+# CHANGER THÈME
+# ============================================================
+
+def changer_theme():
+
+    global theme_sombre
+
+    theme_sombre = not theme_sombre
+
+    appliquer_theme()
+
+
+# ============================================================
 # REDIMENSIONNEMENT
 # ============================================================
 
@@ -2036,13 +2156,12 @@ fond.bind(
 
 
 # ============================================================
-# QUALITÉ GRAPHIQUE AUTOMATIQUE
+# ADAPTATION GRAPHIQUE
 # ============================================================
 
 def adapter_graphique(event=None):
 
     largeur = cadre_graphique.winfo_width()
-
     hauteur = cadre_graphique.winfo_height()
 
     if largeur < 50:
@@ -2058,8 +2177,14 @@ def adapter_graphique(event=None):
     )
 
     figure.set_size_inches(
-        (largeur - 12) / dpi,
-        (hauteur - 12) / dpi,
+        max(
+            5,
+            (largeur - 12) / dpi
+        ),
+        max(
+            4,
+            (hauteur - 12) / dpi
+        ),
         forward=False
     )
 
