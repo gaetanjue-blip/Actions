@@ -1,4 +1,4 @@
-```python
+
 import tkinter as tk
 from tkinter import ttk
 import yfinance as yf
@@ -1333,4 +1333,3 @@ fenetre.after(
 # ============================================================
 
 fenetre.mainloop()
-```
