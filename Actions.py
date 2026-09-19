@@ -10,29 +10,108 @@ import numpy as np
 
 
 # ============================================================
-# CONFIGURATION
+# ACTIONS DU CAC 40
 # ============================================================
 
-actions = {
-    "Thales": "HO.PA",
+actions_cac40 = {
+    "Accor": "AC.PA",
+    "Air Liquide": "AI.PA",
     "Airbus": "AIR.PA",
+    "ArcelorMittal": "MT.PA",
+    "AXA": "CS.PA",
+    "BNP Paribas": "BNP.PA",
+    "Bouygues": "EN.PA",
+    "Bureau Veritas": "BVI.PA",
+    "Capgemini": "CAP.PA",
+    "Carrefour": "CA.PA",
+    "Crédit Agricole": "ACA.PA",
+    "Danone": "BN.PA",
+    "Dassault Systèmes": "DSY.PA",
+    "Eiffage": "FGR.PA",
+    "Engie": "ENGI.PA",
+    "EssilorLuxottica": "EL.PA",
+    "Eurofins Scientific": "ERF.PA",
+    "Euronext": "ENX.PA",
+    "Hermès": "RMS.PA",
+    "Kering": "KER.PA",
+    "L'Oréal": "OR.PA",
+    "Legrand": "LR.PA",
+    "LVMH": "MC.PA",
+    "Michelin": "ML.PA",
+    "Orange": "ORA.PA",
+    "Pernod Ricard": "RI.PA",
+    "Publicis": "PUB.PA",
+    "Renault": "RNO.PA",
+    "Safran": "SAF.PA",
+    "Saint-Gobain": "SGO.PA",
+    "Sanofi": "SAN.PA",
+    "Schneider Electric": "SU.PA",
+    "Société Générale": "GLE.PA",
+    "Stellantis": "STLAM.PA",
+    "STMicroelectronics": "STM.PA",
+    "Thales": "HO.PA",
+    "TotalEnergies": "TTE.PA",
+    "Unibail-Rodamco-Westfield": "URW.PA",
+    "Veolia": "VIE.PA",
     "Vinci": "DG.PA"
 }
 
-couleurs = {
-    "Thales": "#00ff00",
-    "Airbus": "#00cc66",
-    "Vinci": "#00994d"
+
+# ============================================================
+# ACTIONS SÉLECTIONNÉES AU DÉPART
+# ============================================================
+
+actions_selectionnees = {
+    "Thales",
+    "Airbus",
+    "Vinci"
 }
 
-FOND = "#111111"
-FOND2 = "#181818"
-BLANC = "#ffffff"
-GRIS = "#aaaaaa"
-VERT = "#00ff66"
 
-# Actualisation automatique : 1 heure
-INTERVALLE_ACTUALISATION = 60 * 60 * 1000
+# ============================================================
+# COULEURS DES COURBES
+# ============================================================
+
+couleurs = [
+    "#00ff66",
+    "#00ccff",
+    "#ffcc00",
+    "#ff5555",
+    "#aa66ff",
+    "#ff66cc",
+    "#66ffff",
+    "#ff9900",
+    "#66ff33",
+    "#ffffff"
+]
+
+
+# ============================================================
+# THÈMES
+# ============================================================
+
+THEME_SOMBRE = {
+    "fond": "#111111",
+    "fond2": "#181818",
+    "texte": "#ffffff",
+    "gris": "#aaaaaa",
+    "bouton": "#ffffff",
+    "texte_bouton": "#111111",
+    "accent": "#00ff66"
+}
+
+THEME_CLAIR = {
+    "fond": "#f2f2f2",
+    "fond2": "#ffffff",
+    "texte": "#111111",
+    "gris": "#555555",
+    "bouton": "#ffffff",
+    "texte_bouton": "#111111",
+    "accent": "#00994d"
+}
+
+theme_sombre = True
+theme = THEME_SOMBRE
 
 
 # ============================================================
@@ -45,7 +124,7 @@ periodes = {
         "interval": "15m"
     },
 
-    "2 semaines": {
+    "1 semaine": {
         "period": "1mo",
         "interval": "1h"
     },
@@ -70,15 +149,41 @@ periode_actuelle = "24 h"
 
 
 # ============================================================
+# ACTUALISATION AUTOMATIQUE
+# ============================================================
+
+INTERVALLE_ACTUALISATION = 60 * 60 * 1000
+
+
+# ============================================================
 # FENÊTRE
 # ============================================================
 
 fenetre = tk.Tk()
 
-fenetre.title("Actions - Suivi des marchés")
-fenetre.geometry("1200x750")
-fenetre.minsize(900, 600)
-fenetre.configure(bg=FOND)
+fenetre.title("Actions - CAC 40")
+
+fenetre.geometry("1250x800")
+
+fenetre.minsize(950, 650)
+
+
+# ============================================================
+# VARIABLES
+# ============================================================
+
+lignes = {}
+annotations = []
+donnees_actuelles = {}
+couleurs_actions = {}
+
+
+# ============================================================
+# CADRE PRINCIPAL
+# ============================================================
+
+cadre_principal = tk.Frame(fenetre)
+cadre_principal.pack(fill="both", expand=True)
 
 
 # ============================================================
@@ -86,60 +191,71 @@ fenetre.configure(bg=FOND)
 # ============================================================
 
 titre = tk.Label(
-    fenetre,
+    cadre_principal,
     text="📈  ACTIONS",
-    font=("Segoe UI", 26, "bold"),
-    fg=VERT,
-    bg=FOND
+    font=("Segoe UI", 27, "bold")
 )
 
-titre.pack(pady=(18, 0))
+titre.pack(pady=(15, 0))
 
 
 sous_titre = tk.Label(
-    fenetre,
-    text="Thales • Airbus • Vinci",
-    font=("Segoe UI", 11),
-    fg=GRIS,
-    bg=FOND
+    cadre_principal,
+    text="Suivi des valeurs du CAC 40",
+    font=("Segoe UI", 11)
 )
 
 sous_titre.pack(pady=(2, 10))
 
 
 # ============================================================
-# BARRE DES OPTIONS
+# BARRE OPTIONS
 # ============================================================
 
-cadre_options = tk.Frame(
-    fenetre,
-    bg=FOND
-)
+cadre_options = tk.Frame(cadre_principal)
 
 cadre_options.pack(
     fill="x",
     padx=20,
-    pady=(0, 8)
+    pady=(0, 10)
 )
 
+
+# ============================================================
+# BOUTON ACTIONS
+# ============================================================
+
+bouton_actions = tk.Button(
+    cadre_options,
+    text="☰  Choisir les actions",
+    font=("Segoe UI", 10, "bold"),
+    relief="flat",
+    cursor="hand2",
+    padx=15,
+    pady=7
+)
+
+bouton_actions.pack(
+    side="left",
+    padx=(0, 15)
+)
+
+
+# ============================================================
+# PÉRIODE
+# ============================================================
 
 label_periode = tk.Label(
     cadre_options,
     text="Période :",
-    font=("Segoe UI", 10, "bold"),
-    fg=BLANC,
-    bg=FOND
+    font=("Segoe UI", 10, "bold")
 )
 
 label_periode.pack(
     side="left",
-    padx=(5, 8)
+    padx=(0, 7)
 )
 
-
-# ============================================================
-# MENU DÉROULANT
-# ============================================================
 
 style = ttk.Style()
 
@@ -150,9 +266,7 @@ except:
 
 style.configure(
     "TCombobox",
-    fieldbackground=FOND2,
-    background=FOND2,
-    foreground=BLANC
+    padding=5
 )
 
 menu_periode = ttk.Combobox(
@@ -170,13 +284,41 @@ menu_periode.pack(
 
 
 # ============================================================
+# BOUTON THÈME
+# ============================================================
+
+bouton_theme = tk.Button(
+    cadre_options,
+    text="☀  Mode clair",
+    font=("Segoe UI", 10, "bold"),
+    relief="flat",
+    cursor="hand2",
+    padx=15,
+    pady=7
+)
+
+bouton_theme.pack(
+    side="right"
+)
+
+
+label_theme = tk.Label(
+    cadre_options,
+    text="Apparence :",
+    font=("Segoe UI", 10, "bold")
+)
+
+label_theme.pack(
+    side="right",
+    padx=(0, 7)
+)
+
+
+# ============================================================
 # CADRE GRAPHIQUE
 # ============================================================
 
-cadre_graphique = tk.Frame(
-    fenetre,
-    bg=FOND2
-)
+cadre_graphique = tk.Frame(cadre_principal)
 
 cadre_graphique.pack(
     fill="both",
@@ -193,11 +335,8 @@ cadre_graphique.pack(
 plt.rcParams["font.family"] = "Segoe UI"
 
 figure, ax = plt.subplots(
-    figsize=(10, 6),
-    facecolor=FOND2
+    figsize=(10, 6)
 )
-
-ax.set_facecolor(FOND2)
 
 canvas = FigureCanvasTkAgg(
     figure,
@@ -217,8 +356,7 @@ canvas_widget.pack(
 # ============================================================
 
 cadre_bas = tk.Frame(
-    fenetre,
-    bg=FOND
+    cadre_principal
 )
 
 cadre_bas.pack(
@@ -228,16 +366,10 @@ cadre_bas.pack(
 )
 
 
-# ============================================================
-# STATUT
-# ============================================================
-
 statut = tk.Label(
     cadre_bas,
     text="Démarrage...",
-    font=("Segoe UI", 10),
-    fg=GRIS,
-    bg=FOND
+    font=("Segoe UI", 10)
 )
 
 statut.pack(
@@ -253,10 +385,6 @@ bouton_actualiser = tk.Button(
     cadre_bas,
     text="⟳  Actualiser",
     font=("Segoe UI", 11, "bold"),
-    fg=FOND,
-    bg=VERT,
-    activeforeground=FOND,
-    activebackground="#00cc55",
     relief="flat",
     cursor="hand2",
     padx=20,
@@ -269,36 +397,409 @@ bouton_actualiser.pack(
 
 
 # ============================================================
-# VARIABLES
+# THÈME
 # ============================================================
 
-lignes = {}
-annotations = []
-donnees_actuelles = {}
+def appliquer_theme():
+
+    global theme
+
+    if theme_sombre:
+        theme = THEME_SOMBRE
+    else:
+        theme = THEME_CLAIR
+
+    fenetre.configure(
+        bg=theme["fond"]
+    )
+
+    cadre_principal.configure(
+        bg=theme["fond"]
+    )
+
+    titre.configure(
+        bg=theme["fond"],
+        fg=theme["accent"]
+    )
+
+    sous_titre.configure(
+        bg=theme["fond"],
+        fg=theme["gris"]
+    )
+
+    cadre_options.configure(
+        bg=theme["fond"]
+    )
+
+    cadre_bas.configure(
+        bg=theme["fond"]
+    )
+
+    label_periode.configure(
+        bg=theme["fond"],
+        fg=theme["texte"]
+    )
+
+    label_theme.configure(
+        bg=theme["fond"],
+        fg=theme["texte"]
+    )
+
+    statut.configure(
+        bg=theme["fond"],
+        fg=theme["gris"]
+    )
+
+    bouton_actualiser.configure(
+        bg=theme["bouton"],
+        fg=theme["texte_bouton"],
+        activebackground="#dddddd",
+        activeforeground="#111111"
+    )
+
+    bouton_actions.configure(
+        bg=theme["bouton"],
+        fg=theme["texte_bouton"],
+        activebackground="#dddddd",
+        activeforeground="#111111"
+    )
+
+    bouton_theme.configure(
+        bg=theme["bouton"],
+        fg=theme["texte_bouton"],
+        activebackground="#dddddd",
+        activeforeground="#111111"
+    )
+
+    if theme_sombre:
+        bouton_theme.configure(
+            text="☀  Mode clair"
+        )
+    else:
+        bouton_theme.configure(
+            text="🌙  Mode sombre"
+        )
+
+    ax.set_facecolor(
+        theme["fond2"]
+    )
+
+    figure.patch.set_facecolor(
+        theme["fond2"]
+    )
+
+    canvas.draw_idle()
+
+
+def changer_theme():
+
+    global theme_sombre
+
+    theme_sombre = not theme_sombre
+
+    appliquer_theme()
+
+    if donnees_actuelles:
+        afficher_graphique(
+            donnees_actuelles
+        )
+
+
+bouton_theme.config(
+    command=changer_theme
+)
 
 
 # ============================================================
-# RÉCUPÉRER LES DONNÉES
+# FENÊTRE DE SÉLECTION DES ACTIONS
+# ============================================================
+
+def ouvrir_selection_actions():
+
+    fenetre_selection = tk.Toplevel(
+        fenetre
+    )
+
+    fenetre_selection.title(
+        "Choisir les actions"
+    )
+
+    fenetre_selection.geometry(
+        "650x650"
+    )
+
+    fenetre_selection.configure(
+        bg=theme["fond"]
+    )
+
+
+    titre_selection = tk.Label(
+        fenetre_selection,
+        text="Choisir les valeurs du CAC 40",
+        font=("Segoe UI", 18, "bold"),
+        bg=theme["fond"],
+        fg=theme["texte"]
+    )
+
+    titre_selection.pack(
+        pady=(15, 5)
+    )
+
+
+    sous_titre_selection = tk.Label(
+        fenetre_selection,
+        text="Sélectionne une ou plusieurs actions",
+        font=("Segoe UI", 10),
+        bg=theme["fond"],
+        fg=theme["gris"]
+    )
+
+    sous_titre_selection.pack(
+        pady=(0, 10)
+    )
+
+
+    cadre_liste = tk.Frame(
+        fenetre_selection,
+        bg=theme["fond2"]
+    )
+
+    cadre_liste.pack(
+        fill="both",
+        expand=True,
+        padx=20,
+        pady=10
+    )
+
+
+    canvas_selection = tk.Canvas(
+        cadre_liste,
+        bg=theme["fond2"],
+        highlightthickness=0
+    )
+
+    scrollbar = tk.Scrollbar(
+        cadre_liste,
+        orient="vertical",
+        command=canvas_selection.yview
+    )
+
+    cadre_cases = tk.Frame(
+        canvas_selection,
+        bg=theme["fond2"]
+    )
+
+
+    canvas_selection.create_window(
+        (0, 0),
+        window=cadre_cases,
+        anchor="nw"
+    )
+
+    canvas_selection.configure(
+        yscrollcommand=scrollbar.set
+    )
+
+    canvas_selection.pack(
+        side="left",
+        fill="both",
+        expand=True
+    )
+
+    scrollbar.pack(
+        side="right",
+        fill="y"
+    )
+
+
+    variables_actions = {}
+
+
+    for index, nom in enumerate(
+        actions_cac40.keys()
+    ):
+
+        variable = tk.BooleanVar(
+            value=nom in actions_selectionnees
+        )
+
+        variables_actions[nom] = variable
+
+        case = tk.Checkbutton(
+            cadre_cases,
+            text=nom,
+            variable=variable,
+            anchor="w",
+            font=("Segoe UI", 10),
+            bg=theme["fond2"],
+            fg=theme["texte"],
+            selectcolor=theme["fond"],
+            activebackground=theme["fond2"],
+            activeforeground=theme["texte"],
+            padx=10,
+            pady=5
+        )
+
+        case.grid(
+            row=index // 2,
+            column=index % 2,
+            sticky="w",
+            padx=15,
+            pady=2
+        )
+
+
+    def mettre_a_jour_scroll(event=None):
+
+        canvas_selection.configure(
+            scrollregion=canvas_selection.bbox("all")
+        )
+
+
+    cadre_cases.bind(
+        "<Configure>",
+        mettre_a_jour_scroll
+    )
+
+
+    cadre_boutons = tk.Frame(
+        fenetre_selection,
+        bg=theme["fond"]
+    )
+
+    cadre_boutons.pack(
+        fill="x",
+        padx=20,
+        pady=(5, 15)
+    )
+
+
+    def tout_selectionner():
+
+        for variable in variables_actions.values():
+            variable.set(True)
+
+
+    bouton_tout = tk.Button(
+        cadre_boutons,
+        text="Tout sélectionner",
+        font=("Segoe UI", 10, "bold"),
+        bg=theme["bouton"],
+        fg=theme["texte_bouton"],
+        relief="flat",
+        cursor="hand2",
+        padx=12,
+        pady=7,
+        command=tout_selectionner
+    )
+
+    bouton_tout.pack(
+        side="left"
+    )
+
+
+    def tout_desselectionner():
+
+        for variable in variables_actions.values():
+            variable.set(False)
+
+
+    bouton_aucun = tk.Button(
+        cadre_boutons,
+        text="Tout désélectionner",
+        font=("Segoe UI", 10, "bold"),
+        bg=theme["bouton"],
+        fg=theme["texte_bouton"],
+        relief="flat",
+        cursor="hand2",
+        padx=12,
+        pady=7,
+        command=tout_desselectionner
+    )
+
+    bouton_aucun.pack(
+        side="left",
+        padx=10
+    )
+
+
+    def valider_selection():
+
+        global actions_selectionnees
+
+        nouvelle_selection = set()
+
+        for nom, variable in variables_actions.items():
+
+            if variable.get():
+                nouvelle_selection.add(nom)
+
+
+        if len(nouvelle_selection) == 0:
+
+            statut.config(
+                text="⚠ Sélectionne au moins une action.",
+                fg="#ff5555"
+            )
+
+            return
+
+
+        actions_selectionnees = nouvelle_selection
+
+        fenetre_selection.destroy()
+
+        actualiser()
+
+
+    bouton_valider = tk.Button(
+        cadre_boutons,
+        text="✓  Valider",
+        font=("Segoe UI", 10, "bold"),
+        bg=theme["bouton"],
+        fg=theme["texte_bouton"],
+        relief="flat",
+        cursor="hand2",
+        padx=18,
+        pady=7,
+        command=valider_selection
+    )
+
+    bouton_valider.pack(
+        side="right"
+    )
+
+
+bouton_actions.config(
+    command=ouvrir_selection_actions
+)
+
+
+# ============================================================
+# RÉCUPÉRATION DES DONNÉES
 # ============================================================
 
 def recuperer_donnees():
 
-    global periode_actuelle
-
-    configuration = periodes[periode_actuelle]
+    configuration = periodes[
+        periode_actuelle
+    ]
 
     period = configuration["period"]
+
     interval = configuration["interval"]
 
     donnees = {}
 
-    for nom, symbole in actions.items():
+
+    for nom in actions_selectionnees:
+
+        symbole = actions_cac40[nom]
 
         try:
 
             print(
-                f"Téléchargement de {nom} "
-                f"({period}, {interval})..."
+                f"Téléchargement : {nom}"
             )
 
             data = yf.download(
@@ -323,6 +824,7 @@ def recuperer_donnees():
 
             donnees[nom] = None
 
+
     return donnees
 
 
@@ -335,10 +837,9 @@ def afficher_graphique(donnees):
     global lignes
     global annotations
     global donnees_actuelles
+    global couleurs_actions
 
     donnees_actuelles = donnees
-
-    # Supprimer les anciennes annotations
 
     for annotation in annotations:
 
@@ -351,39 +852,57 @@ def afficher_graphique(donnees):
 
     lignes = {}
 
-    # Nettoyer le graphique
-
     ax.clear()
 
-    ax.set_facecolor(FOND2)
+    ax.set_facecolor(
+        theme["fond2"]
+    )
+
+    figure.patch.set_facecolor(
+        theme["fond2"]
+    )
+
+
+    couleurs_actions = {}
+
+    for index, nom in enumerate(
+        actions_selectionnees
+    ):
+
+        couleurs_actions[nom] = couleurs[
+            index % len(couleurs)
+        ]
+
 
     nombre_actions = 0
 
-    # ========================================================
-    # TRACER LES ACTIONS
-    # ========================================================
 
-    for nom in actions:
+    for nom in actions_selectionnees:
 
         data = donnees.get(nom)
 
         if data is None or data.empty:
             continue
 
+
         try:
 
             cours = data["Close"]
 
-            # Correction pour yfinance
-            # lorsque Close est un DataFrame
+            if hasattr(
+                cours,
+                "columns"
+            ):
 
-            if hasattr(cours, "columns"):
                 cours = cours.iloc[:, 0]
+
 
             cours = cours.dropna()
 
+
             if len(cours) == 0:
                 continue
+
 
             dates = cours.index
 
@@ -392,16 +911,21 @@ def afficher_graphique(donnees):
                 dtype=float
             )
 
+
+            couleur = couleurs_actions[nom]
+
+
             ligne, = ax.plot(
                 dates,
                 valeurs,
                 label=nom,
-                color=couleurs[nom],
-                linewidth=2.5,
+                color=couleur,
+                linewidth=2.3,
                 marker="o",
-                markersize=3,
+                markersize=2.5,
                 picker=8
             )
+
 
             lignes[nom] = {
                 "ligne": ligne,
@@ -409,14 +933,15 @@ def afficher_graphique(donnees):
                 "valeurs": valeurs
             }
 
+
             nombre_actions += 1
+
 
         except Exception as erreur:
 
             print(
-                "Erreur graphique",
+                "Erreur graphique :",
                 nom,
-                ":",
                 erreur
             )
 
@@ -426,8 +951,8 @@ def afficher_graphique(donnees):
     # ========================================================
 
     ax.set_title(
-        f"Évolution des actions — {periode_actuelle}",
-        color=BLANC,
+        f"CAC 40 — {periode_actuelle}",
+        color=theme["texte"],
         fontsize=15,
         fontweight="bold",
         pad=15
@@ -439,20 +964,20 @@ def afficher_graphique(donnees):
     # ========================================================
 
     ax.set_xlabel(
-        "Date et heure",
-        color=BLANC,
-        fontsize=11
+        "Date",
+        color=theme["texte"],
+        fontsize=10
     )
 
     ax.set_ylabel(
         "Prix (€)",
-        color=BLANC,
-        fontsize=11
+        color=theme["texte"],
+        fontsize=10
     )
 
 
     # ========================================================
-    # FORMAT DATE
+    # FORMAT DES DATES
     # ========================================================
 
     if periode_actuelle == "24 h":
@@ -461,10 +986,10 @@ def afficher_graphique(donnees):
             mdates.DateFormatter("%H:%M")
         )
 
-    elif periode_actuelle == "2 semaines":
+    elif periode_actuelle == "1 semaine":
 
         ax.xaxis.set_major_formatter(
-            mdates.DateFormatter("%d/%m %H:%M")
+            mdates.DateFormatter("%d/%m")
         )
 
     elif periode_actuelle == "1 mois":
@@ -486,7 +1011,7 @@ def afficher_graphique(donnees):
 
     ax.tick_params(
         axis="both",
-        colors=BLANC,
+        colors=theme["texte"],
         labelsize=9
     )
 
@@ -495,12 +1020,23 @@ def afficher_graphique(donnees):
     # GRILLE
     # ========================================================
 
-    ax.grid(
-        True,
-        color="#555555",
-        alpha=0.25,
-        linestyle="--"
-    )
+    if theme_sombre:
+
+        ax.grid(
+            True,
+            color="#555555",
+            alpha=0.25,
+            linestyle="--"
+        )
+
+    else:
+
+        ax.grid(
+            True,
+            color="#999999",
+            alpha=0.25,
+            linestyle="--"
+        )
 
 
     # ========================================================
@@ -509,7 +1045,9 @@ def afficher_graphique(donnees):
 
     for bordure in ax.spines.values():
 
-        bordure.set_color("#555555")
+        bordure.set_color(
+            "#555555"
+        )
 
 
     # ========================================================
@@ -521,17 +1059,20 @@ def afficher_graphique(donnees):
         legend = ax.legend(
             loc="upper left",
             frameon=True,
-            facecolor=FOND,
-            edgecolor="#444444",
-            fontsize=10
+            facecolor=theme["fond"],
+            edgecolor="#777777",
+            fontsize=9
         )
 
         for texte in legend.get_texts():
-            texte.set_color(BLANC)
+
+            texte.set_color(
+                theme["texte"]
+            )
 
 
     # ========================================================
-    # HEURE DE MISE À JOUR
+    # ACTUALISATION
     # ========================================================
 
     heure = datetime.now().strftime(
@@ -543,8 +1084,8 @@ def afficher_graphique(donnees):
         0.02,
         "Actualisé : " + heure,
         transform=ax.transAxes,
-        color=GRIS,
-        fontsize=9,
+        color=theme["gris"],
+        fontsize=8,
         ha="right"
     )
 
@@ -557,14 +1098,12 @@ def afficher_graphique(donnees):
 
 
 # ============================================================
-# SURVOL DE LA SOURIS
+# SURVOL SOURIS
 # ============================================================
 
 def afficher_info_souris(event):
 
     global annotations
-
-    # Supprimer ancienne info
 
     for annotation in annotations:
 
@@ -576,23 +1115,19 @@ def afficher_info_souris(event):
     annotations = []
 
 
-    # Vérifier que la souris est dans le graphique
-
     if event.inaxes != ax:
         canvas.draw_idle()
         return
+
 
     if event.x is None or event.y is None:
         return
 
 
     meilleure_distance = float("inf")
+
     meilleure_info = None
 
-
-    # ========================================================
-    # CHERCHER LE POINT LE PLUS PROCHE
-    # ========================================================
 
     for nom, infos in lignes.items():
 
@@ -605,7 +1140,9 @@ def afficher_info_souris(event):
 
         try:
 
-            contient, details = ligne.contains(event)
+            contient, details = ligne.contains(
+                event
+            )
 
         except:
 
@@ -618,25 +1155,43 @@ def afficher_info_souris(event):
 
         try:
 
-            x_points = mdates.date2num(dates)
+            x_points = mdates.date2num(
+                dates
+            )
 
             points = np.column_stack(
-                [x_points, valeurs]
+                [
+                    x_points,
+                    valeurs
+                ]
             )
 
             points_ecran = ax.transData.transform(
                 points
             )
 
+
             distances = np.sqrt(
-                (points_ecran[:, 0] - event.x) ** 2
+                (
+                    points_ecran[:, 0]
+                    -
+                    event.x
+                ) ** 2
                 +
-                (points_ecran[:, 1] - event.y) ** 2
+                (
+                    points_ecran[:, 1]
+                    -
+                    event.y
+                ) ** 2
             )
 
-            index = np.argmin(distances)
+
+            index = np.argmin(
+                distances
+            )
 
             distance = distances[index]
+
 
         except:
 
@@ -655,10 +1210,6 @@ def afficher_info_souris(event):
             )
 
 
-    # ========================================================
-    # PAS DE POINT TROUVÉ
-    # ========================================================
-
     if meilleure_info is None:
 
         canvas.draw_idle()
@@ -666,16 +1217,10 @@ def afficher_info_souris(event):
         return
 
 
-    # ========================================================
-    # INFORMATIONS
-    # ========================================================
+    nom, date, valeur, x_point = (
+        meilleure_info
+    )
 
-    nom, date, valeur, x_point = meilleure_info
-
-
-    # ========================================================
-    # INFO-BULLE
-    # ========================================================
 
     texte = (
         f"{nom}\n"
@@ -687,33 +1232,37 @@ def afficher_info_souris(event):
 
     annotation = ax.annotate(
         texte,
-        xy=(x_point, valeur),
-        xytext=(15, 15),
+        xy=(
+            x_point,
+            valeur
+        ),
+        xytext=(
+            15,
+            15
+        ),
         textcoords="offset points",
-        color=BLANC,
+        color=theme["texte"],
         fontsize=10,
         fontweight="bold",
         bbox=dict(
             boxstyle="round,pad=0.5",
-            facecolor=FOND,
-            edgecolor=couleurs[nom],
+            facecolor=theme["fond"],
+            edgecolor=couleurs_actions[nom],
             alpha=0.95
         ),
         arrowprops=dict(
             arrowstyle="->",
-            color=couleurs[nom]
+            color=couleurs_actions[nom]
         )
     )
 
 
-    annotations.append(annotation)
+    annotations.append(
+        annotation
+    )
 
     canvas.draw_idle()
 
-
-# ============================================================
-# CONNECTER LA SOURIS
-# ============================================================
 
 canvas.mpl_connect(
     "motion_notify_event",
@@ -732,9 +1281,13 @@ def actualiser():
         text="⟳  Chargement..."
     )
 
+
     statut.config(
-        text=f"Récupération des données ({periode_actuelle})...",
-        fg=GRIS
+        text=(
+            f"Récupération des données "
+            f"({periode_actuelle})..."
+        ),
+        fg=theme["gris"]
     )
 
 
@@ -744,7 +1297,9 @@ def actualiser():
 
         fenetre.after(
             0,
-            lambda: terminer_actualisation(donnees)
+            lambda: terminer_actualisation(
+                donnees
+            )
         )
 
 
@@ -762,20 +1317,25 @@ def actualiser():
 
 def terminer_actualisation(donnees):
 
-    afficher_graphique(donnees)
+    afficher_graphique(
+        donnees
+    )
+
 
     bouton_actualiser.config(
         state="normal",
         text="⟳  Actualiser"
     )
 
+
     heure = datetime.now().strftime(
         "%H:%M:%S"
     )
 
+
     statut.config(
-        text=f"✓ Données mises à jour à {heure}",
-        fg=VERT
+        text=f"✓ Mis à jour à {heure}",
+        fg=theme["accent"]
     )
 
 
@@ -789,39 +1349,15 @@ def changer_periode(event=None):
 
     nouvelle_periode = menu_periode.get()
 
+
     if nouvelle_periode not in periodes:
         return
 
-    if nouvelle_periode == periode_actuelle:
-        return
 
     periode_actuelle = nouvelle_periode
 
-    # Actualisation automatique après changement
     actualiser()
 
-
-# ============================================================
-# ACTUALISATION AUTOMATIQUE
-# ============================================================
-
-def actualisation_automatique():
-
-    print("Actualisation automatique...")
-
-    actualiser()
-
-    # Nouvelle actualisation dans 1 heure
-
-    fenetre.after(
-        INTERVALLE_ACTUALISATION,
-        actualisation_automatique
-    )
-
-
-# ============================================================
-# CONNEXION DU MENU
-# ============================================================
 
 menu_periode.bind(
     "<<ComboboxSelected>>",
@@ -830,12 +1366,19 @@ menu_periode.bind(
 
 
 # ============================================================
-# CONNEXION DU BOUTON
+# BOUTON ACTUALISER
 # ============================================================
 
 bouton_actualiser.config(
     command=actualiser
 )
+
+
+# ============================================================
+# THÈME INITIAL
+# ============================================================
+
+appliquer_theme()
 
 
 # ============================================================
@@ -846,13 +1389,27 @@ actualiser()
 
 
 # ============================================================
-# PROGRAMMER L'ACTUALISATION AUTOMATIQUE
+# ACTUALISATION AUTOMATIQUE
 # ============================================================
 
 fenetre.after(
     INTERVALLE_ACTUALISATION,
     actualisation_automatique
 )
+
+
+# ============================================================
+# FONCTION ACTUALISATION AUTOMATIQUE
+# ============================================================
+
+def actualisation_automatique():
+
+    actualiser()
+
+    fenetre.after(
+        INTERVALLE_ACTUALISATION,
+        actualisation_automatique
+    )
 
 
 # ============================================================
