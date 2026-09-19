@@ -7,6 +7,8 @@ from datetime import datetime
 import threading
 import numpy as np
 
+from PIL import Image, ImageDraw, ImageTk
+
 
 # ============================================================
 # CONFIGURATION
@@ -108,8 +110,8 @@ THEME_SOMBRE = {
     "panneau": "#151d2a",
     "panneau2": "#192333",
 
-    "verre": "#202c3d",
-    "verre_hover": "#2b3b50",
+    "verre": "#1d2838",
+    "verre_hover": "#26364a",
 
     "bordure": "#34445a",
 
@@ -132,8 +134,8 @@ THEME_CLAIR = {
     "panneau": "#ffffff",
     "panneau2": "#f1f4f8",
 
-    "verre": "#edf2f7",
-    "verre_hover": "#e3eaf2",
+    "verre": "#f0f4f9",
+    "verre_hover": "#e7edf4",
 
     "bordure": "#d3dbe6",
 
@@ -196,7 +198,6 @@ COULEURS_COURBES = [
     "#FB923C",
     "#60A5FA",
     "#F472B6",
-    "#2DD4BF",
     "#818CF8"
 ]
 
@@ -277,20 +278,26 @@ def dessiner_degrade():
 
         r = int(
             couleur_haut[0]
-            +
-            (couleur_bas[0] - couleur_haut[0]) * ratio
+            + (
+                couleur_bas[0]
+                - couleur_haut[0]
+            ) * ratio
         )
 
         g = int(
             couleur_haut[1]
-            +
-            (couleur_bas[1] - couleur_haut[1]) * ratio
+            + (
+                couleur_bas[1]
+                - couleur_haut[1]
+            ) * ratio
         )
 
         b = int(
             couleur_haut[2]
-            +
-            (couleur_bas[2] - couleur_haut[2]) * ratio
+            + (
+                couleur_bas[2]
+                - couleur_haut[2]
+            ) * ratio
         )
 
         couleur = (
@@ -460,7 +467,7 @@ label_live.pack(
 
 
 # ============================================================
-# BARRE DE CONTRÔLES
+# BARRE CONTRÔLES
 # ============================================================
 
 barre_controles = tk.Frame(
@@ -476,7 +483,7 @@ barre_controles.pack(
 
 
 # ============================================================
-# PILULE
+# PILULE CLASSIQUE POUR LE SÉLECTEUR
 # ============================================================
 
 def dessiner_pilule(
@@ -533,13 +540,13 @@ def dessiner_pilule(
             tags="pilule"
         )
 
-    # Très important :
-    # la pilule reste derrière le texte
-    canvas.tag_lower("pilule")
+    canvas.tag_lower(
+        "pilule"
+    )
 
 
 # ============================================================
-# BOUTON VERRE
+# BOUTON HAUTE RÉSOLUTION
 # ============================================================
 
 def creer_bouton_verre(
@@ -556,33 +563,129 @@ def creer_bouton_verre(
         height=hauteur,
         highlightthickness=0,
         bd=0,
+        relief="flat",
         cursor="hand2",
-        bg=theme["fond_bas"]
+        bg=parent.cget("bg")
     )
 
-    def obtenir_couleur_verre():
+    bouton.images = {}
 
-        # On garde un effet "verre"
-        # en mélangeant légèrement le panneau
-        # avec le fond.
-        if theme_sombre:
+    def hex_to_rgb(couleur):
 
-            return "#1d2838"
+        couleur = couleur.lstrip("#")
 
-        return "#f0f4f9"
-
-    def normal():
-
-        bouton.configure(
-            bg=theme["fond_bas"]
+        return tuple(
+            int(
+                couleur[i:i + 2],
+                16
+            )
+            for i in (
+                0,
+                2,
+                4
+            )
         )
 
-        dessiner_pilule(
-            bouton,
-            largeur,
-            hauteur,
-            obtenir_couleur_verre(),
-            theme["bordure"]
+    def creer_image(couleur, contour):
+
+        echelle = 4
+
+        largeur_hd = (
+            largeur * echelle
+        )
+
+        hauteur_hd = (
+            hauteur * echelle
+        )
+
+        couleur_parent = hex_to_rgb(
+            parent.cget("bg")
+        )
+
+        image = Image.new(
+            "RGBA",
+            (
+                largeur_hd,
+                hauteur_hd
+            ),
+            (
+                couleur_parent[0],
+                couleur_parent[1],
+                couleur_parent[2],
+                255
+            )
+        )
+
+        dessin = ImageDraw.Draw(
+            image
+        )
+
+        marge = echelle
+
+        dessin.rounded_rectangle(
+            (
+                marge,
+                marge,
+                largeur_hd - marge,
+                hauteur_hd - marge
+            ),
+            radius=(
+                hauteur_hd // 2
+                - marge
+            ),
+            fill=(
+                hex_to_rgb(
+                    couleur
+                )
+                + (255,)
+            ),
+            outline=(
+                hex_to_rgb(
+                    contour
+                )
+                + (255,)
+            ),
+            width=echelle
+        )
+
+        image = image.resize(
+            (
+                largeur,
+                hauteur
+            ),
+            Image.Resampling.LANCZOS
+        )
+
+        return ImageTk.PhotoImage(
+            image
+        )
+
+    def afficher(
+        couleur,
+        contour
+    ):
+
+        bouton.configure(
+            bg=parent.cget("bg")
+        )
+
+        image = creer_image(
+            couleur,
+            contour
+        )
+
+        bouton.images["fond"] = image
+
+        bouton.delete(
+            "fond"
+        )
+
+        bouton.create_image(
+            0,
+            0,
+            image=image,
+            anchor="nw",
+            tags="fond"
         )
 
         bouton.itemconfig(
@@ -592,32 +695,36 @@ def creer_bouton_verre(
 
         bouton.tag_raise(
             texte_id
+        )
+
+    def normal():
+
+        couleur = (
+            "#1d2838"
+            if theme_sombre
+            else "#f0f4f9"
+        )
+
+        afficher(
+            couleur,
+            theme["bordure"]
         )
 
     def hover():
 
-        bouton.configure(
-            bg=theme["fond_bas"]
+        # Pas de contour bleu :
+        # seule la couleur change
+        couleur = (
+            "#26364a"
+            if theme_sombre
+            else "#e7edf4"
         )
 
-        dessiner_pilule(
-            bouton,
-            largeur,
-            hauteur,
-            theme["verre_hover"],
-            theme["accent2"]
+        afficher(
+            couleur,
+            theme["bordure"]
         )
 
-        bouton.itemconfig(
-            texte_id,
-            fill=theme["texte"]
-        )
-
-        bouton.tag_raise(
-            texte_id
-        )
-
-    # Le texte est créé AVANT le dessin de la pilule
     texte_id = bouton.create_text(
         largeur / 2,
         hauteur / 2,
@@ -629,6 +736,8 @@ def creer_bouton_verre(
             "bold"
         )
     )
+
+    bouton.texte_id = texte_id
 
     normal()
 
@@ -647,7 +756,6 @@ def creer_bouton_verre(
         lambda event: commande()
     )
 
-    bouton.texte_id = texte_id
     bouton.normal = normal
     bouton.hover = hover
 
@@ -726,14 +834,20 @@ texte_periode = bouton_periode.create_text(
 def dessiner_bouton_periode():
 
     bouton_periode.configure(
-        bg=theme["fond_bas"]
+        bg=barre_controles.cget("bg")
+    )
+
+    couleur = (
+        "#1d2838"
+        if theme_sombre
+        else "#f0f4f9"
     )
 
     dessiner_pilule(
         bouton_periode,
         190,
         48,
-        "#1d2838" if theme_sombre else "#f0f4f9",
+        couleur,
         theme["bordure"]
     )
 
@@ -768,7 +882,9 @@ def ouvrir_menu_periode():
         fenetre
     )
 
-    menu_periode.overrideredirect(True)
+    menu_periode.overrideredirect(
+        True
+    )
 
     menu_periode.configure(
         bg=theme["bordure"]
@@ -778,10 +894,8 @@ def ouvrir_menu_periode():
 
     y = (
         bouton_periode.winfo_rooty()
-        +
-        bouton_periode.winfo_height()
-        +
-        7
+        + bouton_periode.winfo_height()
+        + 7
     )
 
     menu_periode.geometry(
@@ -821,6 +935,7 @@ def ouvrir_menu_periode():
             anchor="w",
             padx=18,
             pady=9,
+            highlightthickness=0,
             command=lambda p=periode:
                 choisir_periode(p)
         )
@@ -864,7 +979,8 @@ def fermer_menu_periode():
 
 bouton_periode.bind(
     "<Button-1>",
-    lambda event: ouvrir_menu_periode()
+    lambda event:
+        ouvrir_menu_periode()
 )
 
 
@@ -876,7 +992,7 @@ bouton_periode.bind(
             190,
             48,
             theme["verre_hover"],
-            theme["accent2"]
+            theme["bordure"]
         ),
         bouton_periode.tag_raise(
             texte_periode
@@ -960,7 +1076,7 @@ cadre_graphique.pack(
 
 
 # ============================================================
-# FIGURE
+# GRAPHIQUE
 # ============================================================
 
 figure = plt.figure(
@@ -991,7 +1107,7 @@ widget_graphique.pack(
 
 
 # ============================================================
-# BARRE INFÉRIEURE
+# BARRE DU BAS
 # ============================================================
 
 barre_bas = tk.Frame(
@@ -1024,7 +1140,7 @@ statut.pack(
 
 
 # ============================================================
-# ORDRE ACTIONS
+# ORDRE DES ACTIONS
 # ============================================================
 
 def obtenir_ordre_actions():
@@ -1037,7 +1153,7 @@ def obtenir_ordre_actions():
 
 
 # ============================================================
-# COULEURS ACTIONS
+# COULEURS
 # ============================================================
 
 def generer_couleurs_actions():
@@ -1052,7 +1168,9 @@ def generer_couleurs_actions():
 
         couleurs_actions[nom] = (
             COULEURS_COURBES[
-                i % len(COULEURS_COURBES)
+                i % len(
+                    COULEURS_COURBES
+                )
             ]
         )
 
@@ -1072,10 +1190,6 @@ def afficher_graphique(donnees):
 
     donnees_actuelles = donnees
 
-    # ========================================================
-    # NETTOYAGE
-    # ========================================================
-
     for annotation in annotations:
 
         try:
@@ -1088,16 +1202,12 @@ def afficher_graphique(donnees):
 
     noms_actions = obtenir_ordre_actions()
 
-    # ========================================================
-    # NOMBRE D'ACTIONS
-    # ========================================================
-
     nombre_selectionne = len(
         noms_actions
     )
 
     # ========================================================
-    # CONFIGURATION LÉGENDE
+    # CONFIGURATION DE LA LÉGENDE
     # ========================================================
 
     if nombre_selectionne <= 4:
@@ -1126,7 +1236,6 @@ def afficher_graphique(donnees):
 
     else:
 
-        # 40 actions
         colonnes = 5
         taille_texte = 6.5
 
@@ -1143,26 +1252,21 @@ def afficher_graphique(donnees):
         )
     )
 
-    # ========================================================
-    # HAUTEUR ZONE LÉGENDE
-    # ========================================================
-
     hauteur_legende = (
         0.10
-        +
-        lignes_legende * 0.028
+        + lignes_legende * 0.028
     )
 
     hauteur_legende = max(
         0.14,
         min(
-            0.40,
+            0.42,
             hauteur_legende
         )
     )
 
     # ========================================================
-    # RECRÉATION DE LA FIGURE
+    # FIGURE
     # ========================================================
 
     figure.clear()
@@ -1271,7 +1375,6 @@ def afficher_graphique(donnees):
                 label=nom
             )
 
-            # Halo discret
             ax.plot(
                 dates,
                 valeurs,
@@ -1282,7 +1385,6 @@ def afficher_graphique(donnees):
                 antialiased=True
             )
 
-            # Points
             if len(dates) < 250:
 
                 ax.scatter(
@@ -1465,7 +1567,7 @@ def afficher_graphique(donnees):
     )
 
     # ========================================================
-    # ESPACEMENTS
+    # ESPACEMENT
     # ========================================================
 
     figure.subplots_adjust(
@@ -1479,7 +1581,7 @@ def afficher_graphique(donnees):
 
 
 # ============================================================
-# SURVOL GRAPHIQUE
+# SURVOL
 # ============================================================
 
 def afficher_info_souris(event):
@@ -1529,14 +1631,12 @@ def afficher_info_souris(event):
             distances = np.sqrt(
                 (
                     points_ecran[:, 0]
-                    -
-                    event.x
+                    - event.x
                 ) ** 2
                 +
                 (
                     points_ecran[:, 1]
-                    -
-                    event.y
+                    - event.y
                 ) ** 2
             )
 
@@ -1546,9 +1646,7 @@ def afficher_info_souris(event):
                 )
             )
 
-            distance = distances[
-                index
-            ]
+            distance = distances[index]
 
             if distance < meilleure_distance:
 
@@ -1665,7 +1763,7 @@ def actualiser():
 
 
 # ============================================================
-# RÉCUPÉRATION
+# RÉCUPÉRATION DES DONNÉES
 # ============================================================
 
 def recuperer_donnees():
@@ -1737,7 +1835,7 @@ def terminer_actualisation(donnees):
 
 
 # ============================================================
-# SÉLECTION ACTIONS
+# SÉLECTION DES ACTIONS
 # ============================================================
 
 def ouvrir_selection_actions():
@@ -1885,6 +1983,7 @@ def ouvrir_selection_actions():
             selectcolor=theme["verre"],
             relief="flat",
             bd=0,
+            highlightthickness=0,
             padx=18,
             pady=8
         )
@@ -2085,10 +2184,6 @@ def appliquer_theme():
         bouton_theme
     ]:
 
-        bouton.configure(
-            bg=theme["fond_bas"]
-        )
-
         bouton.normal()
 
     bouton_periode.configure(
@@ -2128,7 +2223,7 @@ def appliquer_theme():
 
 
 # ============================================================
-# CHANGER THÈME
+# CHANGER DE THÈME
 # ============================================================
 
 def changer_theme():
@@ -2156,7 +2251,7 @@ fond.bind(
 
 
 # ============================================================
-# ADAPTATION GRAPHIQUE
+# ADAPTATION DU GRAPHIQUE
 # ============================================================
 
 def adapter_graphique(event=None):
