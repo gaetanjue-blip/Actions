@@ -1,4 +1,3 @@
-```python
 import tkinter as tk
 from tkinter import ttk
 import yfinance as yf
@@ -32,12 +31,12 @@ BLANC = "#ffffff"
 GRIS = "#aaaaaa"
 VERT = "#00ff66"
 
-# Actualisation automatique toutes les 1 heure
+# Actualisation automatique : 1 heure
 INTERVALLE_ACTUALISATION = 60 * 60 * 1000
 
 
 # ============================================================
-# PÉRIODES DISPONIBLES
+# PÉRIODES
 # ============================================================
 
 periodes = {
@@ -67,7 +66,6 @@ periodes = {
     }
 }
 
-
 periode_actuelle = "24 h"
 
 
@@ -78,11 +76,8 @@ periode_actuelle = "24 h"
 fenetre = tk.Tk()
 
 fenetre.title("Actions - Suivi des marchés")
-
 fenetre.geometry("1200x750")
-
 fenetre.minsize(900, 600)
-
 fenetre.configure(bg=FOND)
 
 
@@ -128,8 +123,6 @@ cadre_options.pack(
 )
 
 
-# Texte période
-
 label_periode = tk.Label(
     cadre_options,
     text="Période :",
@@ -145,7 +138,7 @@ label_periode.pack(
 
 
 # ============================================================
-# MENU PÉRIODE
+# MENU DÉROULANT
 # ============================================================
 
 style = ttk.Style()
@@ -162,7 +155,6 @@ style.configure(
     foreground=BLANC
 )
 
-
 menu_periode = ttk.Combobox(
     cadre_options,
     values=list(periodes.keys()),
@@ -178,7 +170,7 @@ menu_periode.pack(
 
 
 # ============================================================
-# CADRE DU GRAPHIQUE
+# CADRE GRAPHIQUE
 # ============================================================
 
 cadre_graphique = tk.Frame(
@@ -195,7 +187,7 @@ cadre_graphique.pack(
 
 
 # ============================================================
-# GRAPHIQUE MATPLOTLIB
+# GRAPHIQUE
 # ============================================================
 
 plt.rcParams["font.family"] = "Segoe UI"
@@ -206,7 +198,6 @@ figure, ax = plt.subplots(
 )
 
 ax.set_facecolor(FOND2)
-
 
 canvas = FigureCanvasTkAgg(
     figure,
@@ -278,18 +269,16 @@ bouton_actualiser.pack(
 
 
 # ============================================================
-# VARIABLES DU GRAPHIQUE
+# VARIABLES
 # ============================================================
 
 lignes = {}
-
 annotations = []
-
 donnees_actuelles = {}
 
 
 # ============================================================
-# RÉCUPÉRATION DES DONNÉES
+# RÉCUPÉRER LES DONNÉES
 # ============================================================
 
 def recuperer_donnees():
@@ -349,9 +338,7 @@ def afficher_graphique(donnees):
 
     donnees_actuelles = donnees
 
-    # --------------------------------------------------------
     # Supprimer les anciennes annotations
-    # --------------------------------------------------------
 
     for annotation in annotations:
 
@@ -364,9 +351,7 @@ def afficher_graphique(donnees):
 
     lignes = {}
 
-    # --------------------------------------------------------
     # Nettoyer le graphique
-    # --------------------------------------------------------
 
     ax.clear()
 
@@ -374,11 +359,8 @@ def afficher_graphique(donnees):
 
     nombre_actions = 0
 
-    toutes_les_dates = []
-
-
     # ========================================================
-    # TRACER CHAQUE ACTION
+    # TRACER LES ACTIONS
     # ========================================================
 
     for nom in actions:
@@ -388,32 +370,20 @@ def afficher_graphique(donnees):
         if data is None or data.empty:
             continue
 
-
         try:
-
-            # ------------------------------------------------
-            # Récupération du cours de clôture
-            # ------------------------------------------------
 
             cours = data["Close"]
 
-
-            # yfinance peut renvoyer un DataFrame
-            # au lieu d'une Series.
+            # Correction pour yfinance
+            # lorsque Close est un DataFrame
 
             if hasattr(cours, "columns"):
-
                 cours = cours.iloc[:, 0]
-
-
-            # Supprimer les valeurs vides
 
             cours = cours.dropna()
 
-
             if len(cours) == 0:
                 continue
-
 
             dates = cours.index
 
@@ -421,11 +391,6 @@ def afficher_graphique(donnees):
                 cours.values,
                 dtype=float
             )
-
-
-            # ------------------------------------------------
-            # Tracer la courbe
-            # ------------------------------------------------
 
             ligne, = ax.plot(
                 dates,
@@ -438,22 +403,13 @@ def afficher_graphique(donnees):
                 picker=8
             )
 
-
-            # ------------------------------------------------
-            # Sauvegarder les informations
-            # ------------------------------------------------
-
             lignes[nom] = {
                 "ligne": ligne,
                 "dates": dates,
                 "valeurs": valeurs
             }
 
-
-            toutes_les_dates.extend(dates)
-
             nombre_actions += 1
-
 
         except Exception as erreur:
 
@@ -496,7 +452,7 @@ def afficher_graphique(donnees):
 
 
     # ========================================================
-    # FORMAT DE L'AXE TEMPOREL
+    # FORMAT DATE
     # ========================================================
 
     if periode_actuelle == "24 h":
@@ -571,12 +527,11 @@ def afficher_graphique(donnees):
         )
 
         for texte in legend.get_texts():
-
             texte.set_color(BLANC)
 
 
     # ========================================================
-    # DATE D'ACTUALISATION
+    # HEURE DE MISE À JOUR
     # ========================================================
 
     heure = datetime.now().strftime(
@@ -594,10 +549,6 @@ def afficher_graphique(donnees):
     )
 
 
-    # ========================================================
-    # AJUSTEMENT
-    # ========================================================
-
     figure.autofmt_xdate()
 
     figure.tight_layout()
@@ -613,9 +564,7 @@ def afficher_info_souris(event):
 
     global annotations
 
-    # --------------------------------------------------------
-    # Supprimer l'ancienne info
-    # --------------------------------------------------------
+    # Supprimer ancienne info
 
     for annotation in annotations:
 
@@ -627,29 +576,22 @@ def afficher_info_souris(event):
     annotations = []
 
 
-    # --------------------------------------------------------
     # Vérifier que la souris est dans le graphique
-    # --------------------------------------------------------
 
     if event.inaxes != ax:
-
         canvas.draw_idle()
-
         return
 
-
     if event.x is None or event.y is None:
-
         return
 
 
     meilleure_distance = float("inf")
-
     meilleure_info = None
 
 
     # ========================================================
-    # CHERCHER LA COURBE LA PLUS PROCHE
+    # CHERCHER LE POINT LE PLUS PROCHE
     # ========================================================
 
     for nom, infos in lignes.items():
@@ -661,10 +603,6 @@ def afficher_info_souris(event):
         valeurs = infos["valeurs"]
 
 
-        # ----------------------------------------------------
-        # Vérifier si la souris est proche de la ligne
-        # ----------------------------------------------------
-
         try:
 
             contient, details = ligne.contains(event)
@@ -675,35 +613,34 @@ def afficher_info_souris(event):
 
 
         if not contient:
-
             continue
 
 
-        # ----------------------------------------------------
-        # Trouver le point le plus proche
-        # ----------------------------------------------------
+        try:
 
-        x_points = mdates.date2num(dates)
+            x_points = mdates.date2num(dates)
 
-        # Transformation en coordonnées écran
+            points = np.column_stack(
+                [x_points, valeurs]
+            )
 
-        points = np.column_stack(
-            [x_points, valeurs]
-        )
+            points_ecran = ax.transData.transform(
+                points
+            )
 
-        points_ecran = ax.transData.transform(points)
+            distances = np.sqrt(
+                (points_ecran[:, 0] - event.x) ** 2
+                +
+                (points_ecran[:, 1] - event.y) ** 2
+            )
 
+            index = np.argmin(distances)
 
-        distances = np.sqrt(
-            (points_ecran[:, 0] - event.x) ** 2
-            +
-            (points_ecran[:, 1] - event.y) ** 2
-        )
+            distance = distances[index]
 
+        except:
 
-        index = np.argmin(distances)
-
-        distance = distances[index]
+            continue
 
 
         if distance < meilleure_distance:
@@ -719,7 +656,7 @@ def afficher_info_souris(event):
 
 
     # ========================================================
-    # AUCUNE COURBE
+    # PAS DE POINT TROUVÉ
     # ========================================================
 
     if meilleure_info is None:
@@ -737,7 +674,7 @@ def afficher_info_souris(event):
 
 
     # ========================================================
-    # CRÉER L'INFO-BULLE
+    # INFO-BULLE
     # ========================================================
 
     texte = (
@@ -775,7 +712,7 @@ def afficher_info_souris(event):
 
 
 # ============================================================
-# ÉVÉNEMENT SOURIS
+# CONNECTER LA SOURIS
 # ============================================================
 
 canvas.mpl_connect(
@@ -785,7 +722,7 @@ canvas.mpl_connect(
 
 
 # ============================================================
-# ACTUALISATION
+# ACTUALISER
 # ============================================================
 
 def actualiser():
@@ -795,26 +732,15 @@ def actualiser():
         text="⟳  Chargement..."
     )
 
-
     statut.config(
-        text=(
-            f"Récupération des données "
-            f"({periode_actuelle})..."
-        ),
+        text=f"Récupération des données ({periode_actuelle})...",
         fg=GRIS
     )
 
 
-    # --------------------------------------------------------
-    # Téléchargement en arrière-plan
-    # --------------------------------------------------------
-
     def telechargement():
 
         donnees = recuperer_donnees()
-
-
-        # Retour dans le thread principal
 
         fenetre.after(
             0,
@@ -838,17 +764,14 @@ def terminer_actualisation(donnees):
 
     afficher_graphique(donnees)
 
-
     bouton_actualiser.config(
         state="normal",
         text="⟳  Actualiser"
     )
 
-
     heure = datetime.now().strftime(
         "%H:%M:%S"
     )
-
 
     statut.config(
         text=f"✓ Données mises à jour à {heure}",
@@ -866,24 +789,15 @@ def changer_periode(event=None):
 
     nouvelle_periode = menu_periode.get()
 
-
     if nouvelle_periode not in periodes:
-
         return
-
-
-    # Si la période n'a pas changé
 
     if nouvelle_periode == periode_actuelle:
-
         return
-
 
     periode_actuelle = nouvelle_periode
 
-
-    # Recharger automatiquement les données
-
+    # Actualisation automatique après changement
     actualiser()
 
 
@@ -897,9 +811,7 @@ def actualisation_automatique():
 
     actualiser()
 
-
-    # Programmer la prochaine actualisation
-    # dans 1 heure
+    # Nouvelle actualisation dans 1 heure
 
     fenetre.after(
         INTERVALLE_ACTUALISATION,
@@ -930,9 +842,6 @@ bouton_actualiser.config(
 # PREMIÈRE ACTUALISATION
 # ============================================================
 
-# L'application récupère automatiquement
-# les données au démarrage.
-
 actualiser()
 
 
@@ -951,5 +860,3 @@ fenetre.after(
 # ============================================================
 
 fenetre.mainloop()
-```
-
