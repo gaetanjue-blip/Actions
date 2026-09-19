@@ -1,3 +1,4 @@
+```python
 import tkinter as tk
 from tkinter import ttk
 import yfinance as yf
@@ -409,13 +410,8 @@ def appliquer_theme():
     else:
         theme = THEME_CLAIR
 
-    fenetre.configure(
-        bg=theme["fond"]
-    )
-
-    cadre_principal.configure(
-        bg=theme["fond"]
-    )
+    fenetre.configure(bg=theme["fond"])
+    cadre_principal.configure(bg=theme["fond"])
 
     titre.configure(
         bg=theme["fond"],
@@ -480,13 +476,8 @@ def appliquer_theme():
             text="🌙  Mode sombre"
         )
 
-    ax.set_facecolor(
-        theme["fond2"]
-    )
-
-    figure.patch.set_facecolor(
-        theme["fond2"]
-    )
+    ax.set_facecolor(theme["fond2"])
+    figure.patch.set_facecolor(theme["fond2"])
 
     canvas.draw_idle()
 
@@ -500,9 +491,7 @@ def changer_theme():
     appliquer_theme()
 
     if donnees_actuelles:
-        afficher_graphique(
-            donnees_actuelles
-        )
+        afficher_graphique(donnees_actuelles)
 
 
 bouton_theme.config(
@@ -516,9 +505,7 @@ bouton_theme.config(
 
 def ouvrir_selection_actions():
 
-    fenetre_selection = tk.Toplevel(
-        fenetre
-    )
+    fenetre_selection = tk.Toplevel(fenetre)
 
     fenetre_selection.title(
         "Choisir les actions"
@@ -532,7 +519,6 @@ def ouvrir_selection_actions():
         bg=theme["fond"]
     )
 
-
     titre_selection = tk.Label(
         fenetre_selection,
         text="Choisir les valeurs du CAC 40",
@@ -544,7 +530,6 @@ def ouvrir_selection_actions():
     titre_selection.pack(
         pady=(15, 5)
     )
-
 
     sous_titre_selection = tk.Label(
         fenetre_selection,
@@ -558,7 +543,6 @@ def ouvrir_selection_actions():
         pady=(0, 10)
     )
 
-
     cadre_liste = tk.Frame(
         fenetre_selection,
         bg=theme["fond2"]
@@ -570,7 +554,6 @@ def ouvrir_selection_actions():
         padx=20,
         pady=10
     )
-
 
     canvas_selection = tk.Canvas(
         cadre_liste,
@@ -588,7 +571,6 @@ def ouvrir_selection_actions():
         canvas_selection,
         bg=theme["fond2"]
     )
-
 
     canvas_selection.create_window(
         (0, 0),
@@ -611,9 +593,7 @@ def ouvrir_selection_actions():
         fill="y"
     )
 
-
     variables_actions = {}
-
 
     for index, nom in enumerate(
         actions_cac40.keys()
@@ -648,19 +628,16 @@ def ouvrir_selection_actions():
             pady=2
         )
 
-
     def mettre_a_jour_scroll(event=None):
 
         canvas_selection.configure(
             scrollregion=canvas_selection.bbox("all")
         )
 
-
     cadre_cases.bind(
         "<Configure>",
         mettre_a_jour_scroll
     )
-
 
     cadre_boutons = tk.Frame(
         fenetre_selection,
@@ -673,12 +650,10 @@ def ouvrir_selection_actions():
         pady=(5, 15)
     )
 
-
     def tout_selectionner():
 
         for variable in variables_actions.values():
             variable.set(True)
-
 
     bouton_tout = tk.Button(
         cadre_boutons,
@@ -697,12 +672,10 @@ def ouvrir_selection_actions():
         side="left"
     )
 
-
     def tout_desselectionner():
 
         for variable in variables_actions.values():
             variable.set(False)
-
 
     bouton_aucun = tk.Button(
         cadre_boutons,
@@ -722,7 +695,6 @@ def ouvrir_selection_actions():
         padx=10
     )
 
-
     def valider_selection():
 
         global actions_selectionnees
@@ -734,7 +706,6 @@ def ouvrir_selection_actions():
             if variable.get():
                 nouvelle_selection.add(nom)
 
-
         if len(nouvelle_selection) == 0:
 
             statut.config(
@@ -744,13 +715,11 @@ def ouvrir_selection_actions():
 
             return
 
-
         actions_selectionnees = nouvelle_selection
 
         fenetre_selection.destroy()
 
         actualiser()
-
 
     bouton_valider = tk.Button(
         cadre_boutons,
@@ -781,16 +750,12 @@ bouton_actions.config(
 
 def recuperer_donnees():
 
-    configuration = periodes[
-        periode_actuelle
-    ]
+    configuration = periodes[periode_actuelle]
 
     period = configuration["period"]
-
     interval = configuration["interval"]
 
     donnees = {}
-
 
     for nom in actions_selectionnees:
 
@@ -823,7 +788,6 @@ def recuperer_donnees():
             )
 
             donnees[nom] = None
-
 
     return donnees
 
@@ -862,7 +826,6 @@ def afficher_graphique(donnees):
         theme["fond2"]
     )
 
-
     couleurs_actions = {}
 
     for index, nom in enumerate(
@@ -873,9 +836,7 @@ def afficher_graphique(donnees):
             index % len(couleurs)
         ]
 
-
     nombre_actions = 0
-
 
     for nom in actions_selectionnees:
 
@@ -883,7 +844,6 @@ def afficher_graphique(donnees):
 
         if data is None or data.empty:
             continue
-
 
         try:
 
@@ -896,13 +856,10 @@ def afficher_graphique(donnees):
 
                 cours = cours.iloc[:, 0]
 
-
             cours = cours.dropna()
-
 
             if len(cours) == 0:
                 continue
-
 
             dates = cours.index
 
@@ -911,9 +868,7 @@ def afficher_graphique(donnees):
                 dtype=float
             )
 
-
             couleur = couleurs_actions[nom]
-
 
             ligne, = ax.plot(
                 dates,
@@ -926,16 +881,13 @@ def afficher_graphique(donnees):
                 picker=8
             )
 
-
             lignes[nom] = {
                 "ligne": ligne,
                 "dates": dates,
                 "valeurs": valeurs
             }
 
-
             nombre_actions += 1
-
 
         except Exception as erreur:
 
@@ -944,7 +896,6 @@ def afficher_graphique(donnees):
                 nom,
                 erreur
             )
-
 
     # ========================================================
     # TITRE
@@ -957,7 +908,6 @@ def afficher_graphique(donnees):
         fontweight="bold",
         pad=15
     )
-
 
     # ========================================================
     # AXES
@@ -974,7 +924,6 @@ def afficher_graphique(donnees):
         color=theme["texte"],
         fontsize=10
     )
-
 
     # ========================================================
     # FORMAT DES DATES
@@ -1004,7 +953,6 @@ def afficher_graphique(donnees):
             mdates.DateFormatter("%m/%Y")
         )
 
-
     # ========================================================
     # GRADUATIONS
     # ========================================================
@@ -1014,7 +962,6 @@ def afficher_graphique(donnees):
         colors=theme["texte"],
         labelsize=9
     )
-
 
     # ========================================================
     # GRILLE
@@ -1038,7 +985,6 @@ def afficher_graphique(donnees):
             linestyle="--"
         )
 
-
     # ========================================================
     # BORDURES
     # ========================================================
@@ -1048,7 +994,6 @@ def afficher_graphique(donnees):
         bordure.set_color(
             "#555555"
         )
-
 
     # ========================================================
     # LÉGENDE
@@ -1070,7 +1015,6 @@ def afficher_graphique(donnees):
                 theme["texte"]
             )
 
-
     # ========================================================
     # ACTUALISATION
     # ========================================================
@@ -1088,7 +1032,6 @@ def afficher_graphique(donnees):
         fontsize=8,
         ha="right"
     )
-
 
     figure.autofmt_xdate()
 
@@ -1114,20 +1057,15 @@ def afficher_info_souris(event):
 
     annotations = []
 
-
     if event.inaxes != ax:
         canvas.draw_idle()
         return
 
-
     if event.x is None or event.y is None:
         return
 
-
     meilleure_distance = float("inf")
-
     meilleure_info = None
-
 
     for nom, infos in lignes.items():
 
@@ -1136,7 +1074,6 @@ def afficher_info_souris(event):
         dates = infos["dates"]
 
         valeurs = infos["valeurs"]
-
 
         try:
 
@@ -1148,10 +1085,8 @@ def afficher_info_souris(event):
 
             contient = False
 
-
         if not contient:
             continue
-
 
         try:
 
@@ -1170,7 +1105,6 @@ def afficher_info_souris(event):
                 points
             )
 
-
             distances = np.sqrt(
                 (
                     points_ecran[:, 0]
@@ -1185,18 +1119,15 @@ def afficher_info_souris(event):
                 ) ** 2
             )
 
-
             index = np.argmin(
                 distances
             )
 
             distance = distances[index]
 
-
         except:
 
             continue
-
 
         if distance < meilleure_distance:
 
@@ -1209,18 +1140,13 @@ def afficher_info_souris(event):
                 x_points[index]
             )
 
-
     if meilleure_info is None:
 
         canvas.draw_idle()
 
         return
 
-
-    nom, date, valeur, x_point = (
-        meilleure_info
-    )
-
+    nom, date, valeur, x_point = meilleure_info
 
     texte = (
         f"{nom}\n"
@@ -1228,7 +1154,6 @@ def afficher_info_souris(event):
         f"Heure : {date.strftime('%H:%M')}\n"
         f"Valeur : {valeur:.2f} €"
     )
-
 
     annotation = ax.annotate(
         texte,
@@ -1256,7 +1181,6 @@ def afficher_info_souris(event):
         )
     )
 
-
     annotations.append(
         annotation
     )
@@ -1281,7 +1205,6 @@ def actualiser():
         text="⟳  Chargement..."
     )
 
-
     statut.config(
         text=(
             f"Récupération des données "
@@ -1289,7 +1212,6 @@ def actualiser():
         ),
         fg=theme["gris"]
     )
-
 
     def telechargement():
 
@@ -1301,7 +1223,6 @@ def actualiser():
                 donnees
             )
         )
-
 
     thread = threading.Thread(
         target=telechargement,
@@ -1321,17 +1242,14 @@ def terminer_actualisation(donnees):
         donnees
     )
 
-
     bouton_actualiser.config(
         state="normal",
         text="⟳  Actualiser"
     )
 
-
     heure = datetime.now().strftime(
         "%H:%M:%S"
     )
-
 
     statut.config(
         text=f"✓ Mis à jour à {heure}",
@@ -1349,10 +1267,8 @@ def changer_periode(event=None):
 
     nouvelle_periode = menu_periode.get()
 
-
     if nouvelle_periode not in periodes:
         return
-
 
     periode_actuelle = nouvelle_periode
 
@@ -1389,16 +1305,6 @@ actualiser()
 
 
 # ============================================================
-# ACTUALISATION AUTOMATIQUE
-# ============================================================
-
-fenetre.after(
-    INTERVALLE_ACTUALISATION,
-    actualisation_automatique
-)
-
-
-# ============================================================
 # FONCTION ACTUALISATION AUTOMATIQUE
 # ============================================================
 
@@ -1413,7 +1319,18 @@ def actualisation_automatique():
 
 
 # ============================================================
+# PROGRAMMER L'ACTUALISATION AUTOMATIQUE
+# ============================================================
+
+fenetre.after(
+    INTERVALLE_ACTUALISATION,
+    actualisation_automatique
+)
+
+
+# ============================================================
 # LANCEMENT
 # ============================================================
 
 fenetre.mainloop()
+```
