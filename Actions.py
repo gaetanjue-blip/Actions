@@ -3,7 +3,9 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.ticker import FuncFormatter
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import threading
 import numpy as np
 
@@ -15,7 +17,6 @@ from PIL import Image, ImageDraw, ImageTk
 # ============================================================
 
 NOM_APPLICATION = "CacVision"
-
 
 actions_cac40 = {
     "Accor": "AC.PA",
@@ -97,6 +98,17 @@ periodes = {
 
 
 periode_actuelle = "24 h"
+
+
+# ============================================================
+# FUSEAUX HORAIRES
+# ============================================================
+
+# Les marchés parisiens utilisent le fuseau Europe/Paris
+FUSEAU_BOURSE = ZoneInfo("Europe/Paris")
+
+# L'application affiche l'heure de La Réunion
+FUSEAU_REUNION = ZoneInfo("Indian/Reunion")
 
 
 # ============================================================
@@ -467,7 +479,7 @@ label_live.pack(
 
 
 # ============================================================
-# BARRE CONTRÔLES
+# BARRE DE CONTRÔLES
 # ============================================================
 
 barre_controles = tk.Frame(
@@ -483,7 +495,7 @@ barre_controles.pack(
 
 
 # ============================================================
-# PILULE CLASSIQUE POUR LE SÉLECTEUR
+# DESSIN PILULE
 # ============================================================
 
 def dessiner_pilule(
@@ -546,7 +558,7 @@ def dessiner_pilule(
 
 
 # ============================================================
-# BOUTON HAUTE RÉSOLUTION
+# BOUTONS HAUTE RÉSOLUTION
 # ============================================================
 
 def creer_bouton_verre(
@@ -562,7 +574,7 @@ def creer_bouton_verre(
         width=largeur,
         height=hauteur,
         highlightthickness=0,
-        bd=0,
+        borderwidth=0,
         relief="flat",
         cursor="hand2",
         bg=parent.cget("bg")
@@ -586,7 +598,10 @@ def creer_bouton_verre(
             )
         )
 
-    def creer_image(couleur, contour):
+    def creer_image(
+        couleur,
+        contour
+    ):
 
         echelle = 4
 
@@ -712,8 +727,7 @@ def creer_bouton_verre(
 
     def hover():
 
-        # Pas de contour bleu :
-        # seule la couleur change
+        # Aucun contour bleu.
         couleur = (
             "#26364a"
             if theme_sombre
@@ -931,11 +945,11 @@ def ouvrir_menu_periode():
             activeforeground=theme["texte"],
             relief="flat",
             bd=0,
+            highlightthickness=0,
             cursor="hand2",
             anchor="w",
             padx=18,
             pady=9,
-            highlightthickness=0,
             command=lambda p=periode:
                 choisir_periode(p)
         )
@@ -1107,7 +1121,7 @@ widget_graphique.pack(
 
 
 # ============================================================
-# BARRE DU BAS
+# BARRE INFÉRIEURE
 # ============================================================
 
 barre_bas = tk.Frame(
@@ -1153,7 +1167,7 @@ def obtenir_ordre_actions():
 
 
 # ============================================================
-# COULEURS
+# COULEURS ACTIONS
 # ============================================================
 
 def generer_couleurs_actions():
@@ -1176,7 +1190,81 @@ def generer_couleurs_actions():
 
 
 # ============================================================
-# AFFICHAGE GRAPHIQUE
+# FORMATAGE DES DATES
+# ============================================================
+
+MOIS_FR = [
+    "jan.",
+    "fév.",
+    "mars",
+    "avr.",
+    "mai",
+    "juin",
+    "juil.",
+    "août",
+    "sept.",
+    "oct.",
+    "nov.",
+    "déc."
+]
+
+
+def formatter_date_francaise(
+    x,
+    position=None
+):
+
+    try:
+
+        date = mdates.num2date(
+            x,
+            tz=FUSEAU_BOURSE
+        )
+
+        # 24 h :
+        # date + heure
+        if periode_actuelle == "24 h":
+
+            return (
+                f"{date.day:02d}/"
+                f"{date.month:02d} "
+                f"{date.hour:02d}:"
+                f"{date.minute:02d}"
+            )
+
+        # 1 semaine / 1 mois :
+        # jour + mois
+        if periode_actuelle in [
+            "1 semaine",
+            "1 mois"
+        ]:
+
+            return (
+                f"{date.day:02d} "
+                f"{MOIS_FR[date.month - 1]}"
+            )
+
+        # 1 an :
+        # mois + année
+        if periode_actuelle == "1 an":
+
+            return (
+                f"{MOIS_FR[date.month - 1]} "
+                f"{date.year}"
+            )
+
+        # Depuis toujours
+        return str(
+            date.year
+        )
+
+    except:
+
+        return ""
+
+
+# ============================================================
+# AFFICHAGE DU GRAPHIQUE
 # ============================================================
 
 def afficher_graphique(donnees):
@@ -1190,6 +1278,7 @@ def afficher_graphique(donnees):
 
     donnees_actuelles = donnees
 
+    # Supprime les anciens tooltips
     for annotation in annotations:
 
         try:
@@ -1200,14 +1289,16 @@ def afficher_graphique(donnees):
     annotations = []
     lignes = {}
 
-    noms_actions = obtenir_ordre_actions()
+    noms_actions = (
+        obtenir_ordre_actions()
+    )
 
     nombre_selectionne = len(
         noms_actions
     )
 
     # ========================================================
-    # CONFIGURATION DE LA LÉGENDE
+    # LÉGENDE
     # ========================================================
 
     if nombre_selectionne <= 4:
@@ -1254,7 +1345,8 @@ def afficher_graphique(donnees):
 
     hauteur_legende = (
         0.10
-        + lignes_legende * 0.028
+        +
+        lignes_legende * 0.028
     )
 
     hauteur_legende = max(
@@ -1266,7 +1358,7 @@ def afficher_graphique(donnees):
     )
 
     # ========================================================
-    # FIGURE
+    # RECRÉATION
     # ========================================================
 
     figure.clear()
@@ -1351,6 +1443,27 @@ def afficher_graphique(donnees):
             if len(cours) < 2:
                 continue
 
+            # ------------------------------------------------
+            # Conversion de l'index en Europe/Paris
+            # ------------------------------------------------
+
+            try:
+
+                if cours.index.tz is not None:
+
+                    cours.index = (
+                        cours.index.tz_convert(
+                            FUSEAU_BOURSE
+                        )
+                    )
+
+            except Exception as erreur_tz:
+
+                print(
+                    "Erreur fuseau :",
+                    erreur_tz
+                )
+
             dates = cours.index
 
             valeurs = np.asarray(
@@ -1362,6 +1475,7 @@ def afficher_graphique(donnees):
                 nom
             ]
 
+            # Ligne
             ligne, = ax.plot(
                 dates,
                 valeurs,
@@ -1375,6 +1489,7 @@ def afficher_graphique(donnees):
                 label=nom
             )
 
+            # Halo
             ax.plot(
                 dates,
                 valeurs,
@@ -1385,6 +1500,7 @@ def afficher_graphique(donnees):
                 antialiased=True
             )
 
+            # Points
             if len(dates) < 250:
 
                 ax.scatter(
@@ -1469,33 +1585,22 @@ def afficher_graphique(donnees):
     )
 
     # ========================================================
-    # DATES
+    # DATES CORRIGÉES
     # ========================================================
 
     locator = mdates.AutoDateLocator(
-        minticks=6,
-        maxticks=9
+        minticks=5,
+        maxticks=8
     )
-
-    formatter = mdates.ConciseDateFormatter(
-        locator
-    )
-
-    formatter.offset_formats = [
-        "",
-        "%Y",
-        "%b %Y",
-        "%d %b",
-        "%H:%M",
-        "%H:%M:%S"
-    ]
 
     ax.xaxis.set_major_locator(
         locator
     )
 
     ax.xaxis.set_major_formatter(
-        formatter
+        FuncFormatter(
+            formatter_date_francaise
+        )
     )
 
     # ========================================================
@@ -1549,11 +1654,13 @@ def afficher_graphique(donnees):
         bordure.set_visible(False)
 
     # ========================================================
-    # MISE À JOUR
+    # DATE DE MISE À JOUR
     # ========================================================
 
-    heure = datetime.now().strftime(
-        "%H:%M:%S"
+    heure = datetime.now(
+        FUSEAU_REUNION
+    ).strftime(
+        "%d/%m/%Y à %H:%M:%S"
     )
 
     figure.text(
@@ -1581,7 +1688,7 @@ def afficher_graphique(donnees):
 
 
 # ============================================================
-# SURVOL
+# SURVOL DU GRAPHIQUE
 # ============================================================
 
 def afficher_info_souris(event):
@@ -1677,9 +1784,32 @@ def afficher_info_souris(event):
         meilleure_info
     )
 
+    # --------------------------------------------------------
+    # Date du point en heure de Paris
+    # --------------------------------------------------------
+
+    try:
+
+        if hasattr(
+            date,
+            "tz_convert"
+        ):
+
+            date_affichee = date.tz_convert(
+                FUSEAU_BOURSE
+            )
+
+        else:
+
+            date_affichee = date
+
+    except:
+
+        date_affichee = date
+
     texte = (
         f"{nom}\n"
-        f"{date.strftime('%d/%m/%Y %H:%M')}\n"
+        f"{date_affichee.strftime('%d/%m/%Y à %H:%M')}\n"
         f"{valeur:.2f} €"
     )
 
@@ -1793,6 +1923,30 @@ def recuperer_donnees():
                 threads=False
             )
 
+            # ------------------------------------------------
+            # Les données Yahoo sont converties en heure de
+            # Paris pour l'affichage des cours.
+            # ------------------------------------------------
+
+            if not data.empty:
+
+                try:
+
+                    if data.index.tz is not None:
+
+                        data.index = (
+                            data.index.tz_convert(
+                                FUSEAU_BOURSE
+                            )
+                        )
+
+                except Exception as erreur_tz:
+
+                    print(
+                        "Erreur conversion heure :",
+                        erreur_tz
+                    )
+
             donnees[nom] = data
 
         except Exception as erreur:
@@ -1825,7 +1979,9 @@ def terminer_actualisation(donnees):
         bouton_rafraichir.texte_id
     )
 
-    heure = datetime.now().strftime(
+    heure = datetime.now(
+        FUSEAU_REUNION
+    ).strftime(
         "%H:%M:%S"
     )
 
