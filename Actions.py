@@ -1,6 +1,6 @@
 import tkinter as tk
+from tkinter import messagebox
 import yfinance as yf
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -860,16 +860,193 @@ bouton_theme.pack(
 
 
 # ============================================================
+# ZONE PRINCIPALE : BARRE LATÉRALE + GRAPHIQUE
+# ============================================================
+
+zone_principale = tk.Frame(
+    conteneur,
+    bd=0
+)
+
+zone_principale.pack(
+    fill="both",
+    expand=True
+)
+
+# ------------------------------------------------------------
+# BARRE LATÉRALE DES ACTIONS
+# ------------------------------------------------------------
+
+barre_laterale = tk.Frame(
+    zone_principale,
+    width=300,
+    bd=0,
+    highlightthickness=1
+)
+
+barre_laterale.pack(
+    side="left",
+    fill="y",
+    padx=(0, 14)
+)
+
+barre_laterale.pack_propagate(False)
+
+
+label_laterale = tk.Label(
+    barre_laterale,
+    text="VALEURS SÉLECTIONNÉES",
+    font=("Segoe UI", 10, "bold"),
+    bd=0,
+    anchor="w"
+)
+
+label_laterale.pack(
+    fill="x",
+    padx=18,
+    pady=(18, 4)
+)
+
+label_laterale_info = tk.Label(
+    barre_laterale,
+    text="Derniers cours disponibles",
+    font=("Segoe UI", 9),
+    bd=0,
+    anchor="w"
+)
+
+label_laterale_info.pack(
+    fill="x",
+    padx=18,
+    pady=(0, 12)
+)
+
+cartes_actions = tk.Frame(
+    barre_laterale,
+    bd=0
+)
+
+cartes_actions.pack(
+    fill="both",
+    expand=True,
+    padx=12,
+    pady=(0, 12)
+)
+
+
+def obtenir_dernieres_valeurs(data):
+    """Retourne dernier cours et variation à partir des vraies données."""
+    if data is None or data.empty:
+        return None, None
+
+    try:
+        close = data["Close"]
+        if hasattr(close, "columns"):
+            close = close.iloc[:, 0]
+        close = close.dropna()
+        if close.empty:
+            return None, None
+        valeurs = close.astype(float).tolist()
+        dernier = valeurs[-1]
+        precedent = valeurs[-2] if len(valeurs) >= 2 else None
+        variation = None
+        if precedent is not None and precedent != 0:
+            variation = (dernier - precedent) / precedent * 100
+        return dernier, variation
+    except Exception:
+        return None, None
+
+
+def mettre_a_jour_cartes_actions():
+    """Reconstruit les cartes de cours dans la barre latérale."""
+    for widget in cartes_actions.winfo_children():
+        widget.destroy()
+
+    if not actions_selectionnees:
+        vide = tk.Label(
+            cartes_actions,
+            text="Aucune action sélectionnée",
+            font=("Segoe UI", 10),
+            bg=theme["panneau"],
+            fg=theme["texte_secondaire"],
+            bd=0
+        )
+        vide.pack(pady=25)
+        return
+
+    for nom in sorted(actions_selectionnees):
+        carte = tk.Frame(
+            cartes_actions,
+            bg=theme["verre"],
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=theme["bordure"]
+        )
+        carte.pack(fill="x", pady=5)
+
+        haut = tk.Frame(carte, bg=theme["verre"], bd=0)
+        haut.pack(fill="x", padx=13, pady=(10, 2))
+
+        point = tk.Canvas(
+            haut, width=10, height=10,
+            highlightthickness=0, bd=0
+        )
+        point.pack(side="left", padx=(0, 7))
+        couleur = couleurs_actions.get(
+            nom, COULEURS_COURBES[list(actions_selectionnees).index(nom) % len(COULEURS_COURBES)]
+        )
+        point.create_oval(2, 2, 9, 9, fill=couleur, outline="")
+
+        nom_label = tk.Label(
+            haut, text=nom,
+            font=("Segoe UI", 10, "bold"),
+            bg=theme["verre"], fg=theme["texte"],
+            bd=0, anchor="w"
+        )
+        nom_label.pack(side="left", fill="x", expand=True)
+
+        data = donnees_actuelles.get(nom)
+        dernier, variation = obtenir_dernieres_valeurs(data)
+
+        valeur_text = "—" if dernier is None else f"{dernier:.2f} €"
+        valeur_label = tk.Label(
+            carte, text=valeur_text,
+            font=("Segoe UI", 17, "bold"),
+            bg=theme["verre"], fg=theme["texte"],
+            bd=0, anchor="w"
+        )
+        valeur_label.pack(fill="x", padx=13, pady=(0, 1))
+
+        if variation is None:
+            variation_text = "Variation indisponible"
+        else:
+            variation_text = f"{'+' if variation >= 0 else ''}{variation:.2f} %"
+
+        variation_label = tk.Label(
+            carte, text=variation_text,
+            font=("Segoe UI", 9, "bold"),
+            bg=theme["verre"],
+            fg=theme["accent"] if variation is None or variation >= 0 else "#ff6b6b",
+            bd=0, anchor="w"
+        )
+        variation_label.pack(fill="x", padx=13, pady=(0, 10))
+
+        carte._point = point
+        carte._labels = (nom_label, valeur_label, variation_label)
+
+
+# ============================================================
 # PANNEAU GRAPHIQUE
 # ============================================================
 
 cadre_graphique = tk.Frame(
-    conteneur,
+    zone_principale,
     bd=0,
     highlightthickness=1
 )
 
 cadre_graphique.pack(
+    side="left",
     fill="both",
     expand=True
 )
@@ -964,6 +1141,29 @@ def appliquer_theme():
     # Fond
     fenetre.configure(
         bg=theme["fond_bas"]
+    )
+
+    zone_principale.configure(
+        bg=theme["fond_bas"]
+    )
+
+    barre_laterale.configure(
+        bg=theme["panneau"],
+        highlightbackground=theme["bordure"]
+    )
+
+    label_laterale.configure(
+        bg=theme["panneau"],
+        fg=theme["texte"]
+    )
+
+    label_laterale_info.configure(
+        bg=theme["panneau"],
+        fg=theme["texte_secondaire"]
+    )
+
+    cartes_actions.configure(
+        bg=theme["panneau"]
     )
 
 
@@ -1067,6 +1267,8 @@ def appliquer_theme():
 
     dessiner_degrade()
 
+    mettre_a_jour_cartes_actions()
+
     afficher_graphique(
         donnees_actuelles
     )
@@ -1141,41 +1343,217 @@ def recuperer_donnees():
 
 
 # ============================================================
+# AFFICHAGE DU GRAPHIQUE
+# ============================================================
+
 # ============================================================
 # COMPLÉTER LES PÉRIODES SANS DONNÉES
 # ============================================================
-def completer_donnees_sans_trou(dates, valeurs):
-    """Prolonge horizontalement la dernière valeur connue."""
+
+def construire_courbe_continue(dates, valeurs):
+    """
+    Conserve les vraies cotations et prolonge horizontalement
+    la dernière valeur lorsqu'il n'y a temporairement aucune donnée.
+
+    Exemple :
+        vendredi 100 € -> samedi 100 € -> dimanche 100 € -> lundi 105 €
+
+    Les points ajoutés pour combler un trou ne sont pas utilisés
+    par l'info-bulle : seules les vraies cotations restent affichées.
+    """
+
     if len(dates) == 0:
-        return list(dates), list(valeurs)
+        return [], []
 
-    dates = list(dates)
-    valeurs = list(valeurs)
-    nouvelles_dates = []
-    nouvelles_valeurs = []
+    vraies_dates = [
+        pd.Timestamp(date).to_pydatetime()
+        for date in dates
+    ]
 
-    for i in range(len(dates) - 1):
-        date_actuelle = pd.Timestamp(dates[i]).to_pydatetime()
-        valeur_actuelle = float(valeurs[i])
-        date_suivante = pd.Timestamp(dates[i + 1]).to_pydatetime()
+    vraies_valeurs = [
+        float(valeur)
+        for valeur in valeurs
+    ]
 
-        nouvelles_dates.append(date_actuelle)
-        nouvelles_valeurs.append(valeur_actuelle)
+    courbe_dates = []
+    courbe_valeurs = []
 
-        if date_suivante - date_actuelle > timedelta(hours=24):
-            jour = date_actuelle + timedelta(days=1)
-            while jour < date_suivante:
-                nouvelles_dates.append(jour)
-                nouvelles_valeurs.append(valeur_actuelle)
-                jour += timedelta(days=1)
+    for i in range(len(vraies_dates)):
 
-    nouvelles_dates.append(pd.Timestamp(dates[-1]).to_pydatetime())
-    nouvelles_valeurs.append(float(valeurs[-1]))
-    return nouvelles_dates, nouvelles_valeurs
+        date_actuelle = vraies_dates[i]
+        valeur_actuelle = vraies_valeurs[i]
+
+        courbe_dates.append(date_actuelle)
+        courbe_valeurs.append(valeur_actuelle)
+
+        if i >= len(vraies_dates) - 1:
+            continue
+
+        date_suivante = vraies_dates[i + 1]
+        valeur_suivante = vraies_valeurs[i + 1]
+
+        ecart = date_suivante - date_actuelle
+
+        # Plus de 24 h sans cotation : week-end, jour férié,
+        # ou autre interruption de données.
+        if ecart > timedelta(hours=24):
+
+            # On place un point juste avant la prochaine vraie cotation.
+            # La courbe reste donc parfaitement horizontale pendant
+            # toute la période sans données.
+            if date_suivante - timedelta(minutes=1) > date_actuelle:
+                courbe_dates.append(
+                    date_suivante - timedelta(minutes=1)
+                )
+                courbe_valeurs.append(
+                    valeur_actuelle
+                )
+
+            # La prochaine vraie valeur sera ajoutée normalement
+            # à l'itération suivante.
+
+    # Si la dernière cotation est ancienne, on la prolonge jusqu'à
+    # maintenant. C'est notamment ce qui permet de voir la courbe
+    # horizontale pendant tout le week-end.
+    maintenant = datetime.now()
+
+    if vraies_dates[-1] < maintenant:
+
+        ecart_final = maintenant - vraies_dates[-1]
+
+        if ecart_final > timedelta(minutes=5):
+
+            courbe_dates.append(maintenant)
+            courbe_valeurs.append(vraies_valeurs[-1])
+
+    return courbe_dates, courbe_valeurs
 
 
-# AFFICHAGE DU GRAPHIQUE
-# ============================================================
+def configurer_dates_graphique(ax, toutes_les_dates):
+    """Configure l'axe X pour conserver les jours sans cotation visibles."""
+
+    maintenant = datetime.now()
+
+    if periode_actuelle == "24 h":
+
+        # En semaine : vraie fenêtre de 24 h.
+        # Le week-end : on garde la dernière séance visible afin
+        # d'éviter un graphique vide.
+        if maintenant.weekday() >= 5 and toutes_les_dates:
+            debut = min(
+                toutes_les_dates[-1] - timedelta(hours=24),
+                maintenant - timedelta(days=2)
+            )
+        else:
+            debut = maintenant - timedelta(hours=24)
+
+        fin = maintenant
+
+        ax.set_xlim(debut, fin)
+
+        ax.xaxis.set_major_locator(
+            mdates.HourLocator(interval=2)
+        )
+
+        ax.xaxis.set_major_formatter(
+            mdates.DateFormatter("%H:%M")
+        )
+
+    elif periode_actuelle == "1 semaine":
+
+        debut = maintenant.replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        ) - timedelta(days=6)
+
+        fin = maintenant.replace(
+            hour=23,
+            minute=59,
+            second=59,
+            microsecond=0
+        )
+
+        ax.set_xlim(debut, fin)
+
+        ax.xaxis.set_major_locator(
+            mdates.DayLocator(interval=1)
+        )
+
+        ax.xaxis.set_major_formatter(
+            mdates.DateFormatter("%a %d/%m")
+        )
+
+    elif periode_actuelle == "1 mois":
+
+        debut = maintenant - timedelta(days=30)
+        fin = maintenant
+
+        ax.set_xlim(debut, fin)
+
+        ax.xaxis.set_major_locator(
+            mdates.DayLocator(interval=3)
+        )
+
+        ax.xaxis.set_major_formatter(
+            mdates.DateFormatter("%d/%m")
+        )
+
+    elif periode_actuelle == "1 an":
+
+        debut = maintenant - timedelta(days=365)
+        fin = maintenant
+
+        ax.set_xlim(debut, fin)
+
+        ax.xaxis.set_major_locator(
+            mdates.MonthLocator()
+        )
+
+        ax.xaxis.set_major_formatter(
+            mdates.DateFormatter("%b %Y")
+        )
+
+    else:
+
+        if toutes_les_dates:
+            debut = min(toutes_les_dates)
+            fin = max(
+                maintenant,
+                max(toutes_les_dates)
+            )
+
+            if debut == fin:
+                debut -= timedelta(days=1)
+                fin += timedelta(days=1)
+
+            ax.set_xlim(debut, fin)
+
+        locator = mdates.AutoDateLocator(
+            minticks=7,
+            maxticks=12
+        )
+
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(
+            mdates.ConciseDateFormatter(locator)
+        )
+
+
+def afficher_popup_weekend():
+
+    maintenant = datetime.now()
+
+    if maintenant.weekday() >= 5:
+
+        messagebox.showinfo(
+            "Bourse fermée",
+            "La Bourse est fermée ce week-end.\n\n"
+            "Les dernières valeurs disponibles restent affichées.\n"
+            "Reprise lundi."
+        )
+
 
 def afficher_graphique(donnees):
 
@@ -1241,87 +1619,147 @@ def afficher_graphique(donnees):
     # COURBES
     # ========================================================
 
+    toutes_les_dates = []
+
     for nom in actions_selectionnees:
 
         data = donnees.get(nom)
 
-
-        if data is None:
+        if data is None or data.empty:
             continue
-
-
-        if data.empty:
-            continue
-
 
         try:
 
             cours = data["Close"]
 
-
-            if hasattr(
-                cours,
-                "columns"
-            ):
-
+            if hasattr(cours, "columns"):
                 cours = cours.iloc[:, 0]
-
 
             cours = cours.dropna()
 
-
-            if len(cours) < 2:
+            if len(cours) == 0:
                 continue
 
+            dates = pd.DatetimeIndex(cours.index)
 
-            dates = cours.index
-
+            # Retirer proprement le fuseau horaire éventuel de yfinance.
+            if dates.tz is not None:
+                dates = dates.tz_convert(None)
 
             valeurs = np.asarray(
                 cours.values,
                 dtype=float
             )
 
+            dates_reelles = [
+                date.to_pydatetime()
+                for date in dates
+            ]
+
+            toutes_les_dates.extend(
+                dates_reelles
+            )
 
             couleur = couleurs_actions[nom]
 
+            # Courbe complétée : les périodes sans cotation restent
+            # horizontales au dernier cours connu.
+            dates_courbe, valeurs_courbe = construire_courbe_continue(
+                dates_reelles,
+                valeurs
+            )
 
-            # WEEK-END / ABSENCE DE DONNÉES
-            # La dernière valeur connue est prolongée horizontalement
-            # pendant les périodes sans cotation.
-            dates_completes, valeurs_completes = completer_donnees_sans_trou(dates, valeurs)
+            if not dates_courbe:
+                continue
 
             ligne, = ax.plot(
-                dates_completes, valeurs_completes,
-                color=couleur, linewidth=1.8, alpha=0.96,
-                solid_capstyle="round", solid_joinstyle="round",
-                antialiased=True, picker=7, label=nom
+                dates_courbe,
+                valeurs_courbe,
+                color=couleur,
+                linewidth=2.0,
+                alpha=0.97,
+                solid_capstyle="round",
+                solid_joinstyle="round",
+                antialiased=True,
+                picker=7,
+                label=nom
             )
 
+            # Petit halo visuel
             ax.plot(
-                dates_completes, valeurs_completes,
-                color=couleur, linewidth=5, alpha=0.035,
-                solid_capstyle="round", antialiased=True
+                dates_courbe,
+                valeurs_courbe,
+                color=couleur,
+                linewidth=5,
+                alpha=0.035,
+                solid_capstyle="round",
+                antialiased=True
             )
 
-            # Les points ne sont affichés que sur les vraies cotations.
-            if len(dates) < 250:
-                ax.scatter(dates, valeurs, color=couleur, s=7, alpha=0.55, linewidths=0)
+            # Les points sont uniquement les vraies cotations.
+            if len(dates_reelles) < 250:
+
+                ax.scatter(
+                    dates_reelles,
+                    valeurs,
+                    color=couleur,
+                    s=7,
+                    alpha=0.55,
+                    linewidths=0
+                )
 
             lignes[nom] = {
                 "ligne": ligne,
                 "dates": dates,
                 "valeurs": valeurs,
-                "dates_completes": dates_completes,
-                "valeurs_completes": valeurs_completes
+                "dates_reelles": dates_reelles,
+                "valeurs_reelles": valeurs
             }
 
         except Exception as erreur:
+
             print(
                 "Erreur graphique :",
                 erreur
             )
 
+    # Mise à jour des cartes de cours dans la barre latérale.
+    mettre_a_jour_cartes_actions()
+
+    # S'il n'y a qu'une seule vraie valeur, on prolonge explicitement
+    # cette valeur jusqu'à maintenant : la courbe reste horizontale.
+    for nom, infos in lignes.items():
+
+        if len(infos["dates_reelles"]) == 1:
+
+            date_unique = infos["dates_reelles"][0]
+            valeur_unique = infos["valeurs_reelles"][0]
+
+            fin = max(
+                datetime.now(),
+                date_unique + timedelta(hours=1)
+            )
+
+            # La ligne est déjà horizontale grâce à construire_courbe_continue.
+            # On ne modifie pas les données utilisées par l'info-bulle.
+            if date_unique < fin:
+                pass
+
+    # Axe calendrier : les week-ends restent visibles même sans cotation.
+    if toutes_les_dates:
+        configurer_dates_graphique(
+            ax,
+            sorted(toutes_les_dates)
+        )
+    else:
+        locator = mdates.AutoDateLocator(
+            minticks=7,
+            maxticks=12
+        )
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(
+            mdates.ConciseDateFormatter(locator)
+        )
 
     # ========================================================
     # TITRE
@@ -1351,31 +1789,6 @@ def afficher_graphique(donnees):
         "Cours (€)",
         color=theme["texte_secondaire"],
         fontsize=10
-    )
-
-
-    # ========================================================
-    # DATES
-    # ========================================================
-
-    locator = mdates.AutoDateLocator(
-        minticks=7,
-        maxticks=12
-    )
-
-
-    formatter = mdates.ConciseDateFormatter(
-        locator
-    )
-
-
-    ax.xaxis.set_major_locator(
-        locator
-    )
-
-
-    ax.xaxis.set_major_formatter(
-        formatter
     )
 
 
@@ -2116,6 +2529,10 @@ appliquer_theme()
 
 
 actualiser()
+
+
+# Information affichée une fois au lancement si nous sommes le week-end.
+fenetre.after(900, afficher_popup_weekend)
 
 
 fenetre.after(
