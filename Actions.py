@@ -1,38 +1,19 @@
 import tkinter as tk
-from tkinter import messagebox
-from datetime import datetime, timedelta
-import threading
-import ctypes
-
-import numpy as np
-import pandas as pd
 import yfinance as yf
-
-import matplotlib
-matplotlib.use("TkAgg")
-
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from datetime import datetime, timedelta
+import threading
+import numpy as np
 
 
 # ============================================================
-# DPI WINDOWS
+# CONFIGURATION
 # ============================================================
 
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(1)
-except Exception:
-    try:
-        ctypes.windll.user32.SetProcessDPIAware()
-    except Exception:
-        pass
-
-
-# ============================================================
-# LISTE DES VALEURS DU CAC 40
-# ============================================================
+NOM_APPLICATION = "CacVision"
 
 actions_cac40 = {
     "Accor": "AC.PA",
@@ -78,20 +59,12 @@ actions_cac40 = {
 }
 
 
-# ============================================================
-# VALEURS SÉLECTIONNÉES PAR DÉFAUT
-# ============================================================
-
-actions_selectionnees = [
+actions_selectionnees = {
     "Thales",
     "Airbus",
     "Vinci"
-]
+}
 
-
-# ============================================================
-# PÉRIODES
-# ============================================================
 
 periodes = {
     "24 h": {
@@ -121,61 +94,95 @@ periodes = {
 }
 
 
-periode_actuelle = "1 semaine"
+periode_actuelle = "24 h"
 
 
 # ============================================================
 # THÈMES
 # ============================================================
 
-themes = {
+THEME_SOMBRE = {
+    "fond_haut": "#080b12",
+    "fond_bas": "#101722",
 
-    "sombre": {
-        "fond": "#111318",
-        "fond_bas": "#171A21",
-        "panneau": "#1E222B",
-        "panneau2": "#252A34",
+    "panneau": "#151d2a",
+    "panneau2": "#192333",
 
-        "texte": "#F5F5F5",
-        "texte_secondaire": "#AEB4C0",
+    "verre": "#202c3d",
+    "verre_hover": "#2a394d",
 
-        "accent": "#4C8DFF",
-        "accent_hover": "#619AFF",
+    "bordure": "#34445a",
 
-        "verre": "#252A34",
-        "verre_hover": "#303642",
+    "texte": "#f5f7fb",
+    "texte_secondaire": "#9ba8bb",
 
-        "bordure": "#363D49",
+    "accent": "#4ade80",
+    "accent2": "#38bdf8",
 
-        "graph_fond": "#171A21",
-        "graph_grille": "#343A46"
-    },
+    "grille": "#516070",
 
-    "clair": {
-        "fond": "#EEF1F5",
-        "fond_bas": "#F7F8FA",
-        "panneau": "#FFFFFF",
-        "panneau2": "#F0F2F5",
-
-        "texte": "#15171B",
-        "texte_secondaire": "#69707C",
-
-        "accent": "#2878F0",
-        "accent_hover": "#4288F2",
-
-        "verre": "#E5E8ED",
-        "verre_hover": "#D9DDE4",
-
-        "bordure": "#D3D7DE",
-
-        "graph_fond": "#FFFFFF",
-        "graph_grille": "#DDE1E7"
-    }
+    "ombre": "#05070b"
 }
 
 
-theme_actuel = "sombre"
-theme = themes[theme_actuel]
+THEME_CLAIR = {
+    "fond_haut": "#e9eef5",
+    "fond_bas": "#f7f9fc",
+
+    "panneau": "#ffffff",
+    "panneau2": "#f1f4f8",
+
+    "verre": "#edf2f7",
+    "verre_hover": "#e3eaf2",
+
+    "bordure": "#d3dbe6",
+
+    "texte": "#172033",
+    "texte_secondaire": "#687589",
+
+    "accent": "#159957",
+    "accent2": "#1689c7",
+
+    "grille": "#aeb9c7",
+
+    "ombre": "#c9d1dc"
+}
+
+
+theme_sombre = True
+theme = THEME_SOMBRE
+
+
+# ============================================================
+# COULEURS DES COURBES
+# ============================================================
+
+COULEURS_COURBES = [
+    "#55E6A5",
+    "#52BFFF",
+    "#B58CFF",
+    "#FFB86B",
+    "#FF6B8A",
+    "#6EE7F9",
+    "#A3E635",
+    "#F59EEC",
+    "#FFD166",
+    "#7DD3FC"
+]
+
+
+couleurs_actions = {}
+
+
+# ============================================================
+# DONNÉES
+# ============================================================
+
+donnees_actuelles = {}
+
+lignes = {}
+
+annotations = []
 
 
 # ============================================================
@@ -184,137 +191,114 @@ theme = themes[theme_actuel]
 
 fenetre = tk.Tk()
 
-fenetre.title("CacVision")
-fenetre.geometry("1900x1080")
-fenetre.minsize(1200, 760)
+fenetre.title(NOM_APPLICATION)
 
-fenetre.configure(
-    bg=theme["fond"]
+fenetre.geometry("2000x1200")
+
+fenetre.minsize(
+    1200,
+    760
 )
 
 
 # ============================================================
-# VARIABLES
+# FOND EN DÉGRADÉ
 # ============================================================
 
-chargement = False
-popup_weekend_deja_affiche = False
-
-figure = None
-ax = None
-canvas_graphique = None
-
-lignes_graphique = []
-
-tooltip = None
-
-
-# ============================================================
-# COULEURS DES COURBES
-# ============================================================
-
-couleurs_courbes = [
-    "#4C8DFF",
-    "#FF5C5C",
-    "#34C759",
-    "#FF9F0A",
-    "#AF52DE",
-    "#00C7BE",
-    "#FF375F",
-    "#64D2FF",
-    "#30D158",
-    "#FFD60A",
-    "#BF5AF2",
-    "#FF6482",
-    "#5E5CE6",
-    "#AC8E68",
-    "#0A84FF"
-]
-
-
-def couleur_action(index):
-    return couleurs_courbes[
-        index % len(couleurs_courbes)
-    ]
-
-
-# ============================================================
-# FOND
-# ============================================================
-
-canvas_fond = tk.Canvas(
+fond = tk.Canvas(
     fenetre,
     highlightthickness=0,
-    bd=0,
-    bg=theme["fond"]
+    bd=0
 )
 
-canvas_fond.pack(
+fond.pack(
     fill="both",
     expand=True
 )
 
 
-def dessiner_fond():
-    canvas_fond.delete("fond")
+def dessiner_degrade():
 
-    largeur = max(
-        canvas_fond.winfo_width(),
-        1
-    )
+    fond.delete("degrade")
 
-    hauteur = max(
-        canvas_fond.winfo_height(),
-        1
-    )
+    largeur = fond.winfo_width()
+    hauteur = fond.winfo_height()
 
-    if theme_actuel == "sombre":
+    if largeur <= 1:
+        return
 
-        haut = "#111318"
-        bas = "#171A21"
+    if hauteur <= 1:
+        return
+
+    if theme_sombre:
+
+        couleur_haut = (8, 11, 18)
+        couleur_bas = (16, 23, 34)
 
     else:
 
-        haut = "#EEF1F5"
-        bas = "#F7F8FA"
+        couleur_haut = (233, 238, 245)
+        couleur_bas = (247, 249, 252)
 
-    # Dégradé très léger
-    for i in range(70):
 
-        ratio = i / 69
+    nombre_lignes = max(
+        100,
+        min(300, hauteur)
+    )
 
-        r1 = int(haut[1:3], 16)
-        g1 = int(haut[3:5], 16)
-        b1 = int(haut[5:7], 16)
 
-        r2 = int(bas[1:3], 16)
-        g2 = int(bas[3:5], 16)
-        b2 = int(bas[5:7], 16)
+    for i in range(nombre_lignes):
 
-        r = int(r1 + (r2 - r1) * ratio)
-        g = int(g1 + (g2 - g1) * ratio)
-        b = int(b1 + (b2 - b1) * ratio)
+        ratio = i / (nombre_lignes - 1)
 
-        couleur = f"#{r:02x}{g:02x}{b:02x}"
+        r = int(
+            couleur_haut[0]
+            +
+            (couleur_bas[0] - couleur_haut[0])
+            * ratio
+        )
 
-        y1 = int(hauteur * i / 70)
-        y2 = int(hauteur * (i + 1) / 70) + 1
+        g = int(
+            couleur_haut[1]
+            +
+            (couleur_bas[1] - couleur_haut[1])
+            * ratio
+        )
 
-        canvas_fond.create_rectangle(
+        b = int(
+            couleur_haut[2]
+            +
+            (couleur_bas[2] - couleur_haut[2])
+            * ratio
+        )
+
+        couleur = (
+            f"#{r:02x}"
+            f"{g:02x}"
+            f"{b:02x}"
+        )
+
+        y1 = int(
+            hauteur
+            * i
+            / nombre_lignes
+        )
+
+        y2 = int(
+            hauteur
+            * (i + 1)
+            / nombre_lignes
+        )
+
+        fond.create_rectangle(
             0,
             y1,
             largeur,
-            y2,
+            y2 + 1,
             fill=couleur,
             outline="",
-            tags="fond"
+            tags="degrade"
         )
-
-
-canvas_fond.bind(
-    "<Configure>",
-    lambda event: dessiner_fond()
-)
 
 
 # ============================================================
@@ -322,45 +306,53 @@ canvas_fond.bind(
 # ============================================================
 
 conteneur = tk.Frame(
-    canvas_fond,
-    bg=theme["fond_bas"]
+    fond,
+    bd=0
 )
 
-fenetre.after(
-    100,
-    lambda: canvas_fond.create_window(
-        0,
-        0,
-        anchor="nw",
-        window=conteneur,
-        width=canvas_fond.winfo_width(),
-        height=canvas_fond.winfo_height()
-    )
+conteneur.place(
+    relx=0.5,
+    rely=0.5,
+    relwidth=0.96,
+    relheight=0.96,
+    anchor="center"
 )
 
 
 # ============================================================
-# TITRE
+# EN-TÊTE
 # ============================================================
 
-cadre_titre = tk.Frame(
+entete = tk.Frame(
     conteneur,
-    bg=theme["fond_bas"]
+    bd=0
 )
 
-cadre_titre.pack(
+entete.pack(
     fill="x",
-    padx=35,
-    pady=(25, 5)
+    pady=(20, 15)
+)
+
+
+bloc_titre = tk.Frame(
+    entete,
+    bd=0
+)
+
+bloc_titre.pack(
+    side="left"
 )
 
 
 titre = tk.Label(
-    cadre_titre,
+    bloc_titre,
     text="CacVision",
-    font=("Segoe UI", 30, "bold"),
-    bg=theme["fond_bas"],
-    fg=theme["texte"]
+    font=(
+        "Segoe UI",
+        34,
+        "bold"
+    ),
+    bd=0
 )
 
 titre.pack(
@@ -369,16 +361,73 @@ titre.pack(
 
 
 sous_titre = tk.Label(
-    cadre_titre,
+    bloc_titre,
     text="Suivi détaillé des valeurs du CAC 40",
-    font=("Segoe UI", 12),
-    bg=theme["fond_bas"],
-    fg=theme["texte_secondaire"]
+    font=(
+        "Segoe UI",
+        12
+    ),
+    bd=0
 )
 
 sous_titre.pack(
     anchor="w",
-    pady=(2, 0)
+    pady=(1, 0)
+)
+
+
+# ============================================================
+# INDICATEUR EN DIRECT
+# ============================================================
+
+bloc_live = tk.Frame(
+    entete,
+    bd=0
+)
+
+bloc_live.pack(
+    side="right",
+    padx=10
+)
+
+
+point_live = tk.Canvas(
+    bloc_live,
+    width=12,
+    height=12,
+    highlightthickness=0,
+    bd=0
+)
+
+point_live.pack(
+    side="left",
+    padx=(0, 7)
+)
+
+
+point_live.create_oval(
+    2,
+    2,
+    10,
+    10,
+    fill="#4ade80",
+    outline=""
+)
+
+
+label_live = tk.Label(
+    bloc_live,
+    text="DONNÉES EN DIRECT",
+    font=(
+        "Segoe UI",
+        9,
+        "bold"
+    ),
+    bd=0
+)
+
+label_live.pack(
+    side="left"
 )
 
 
@@ -388,182 +437,407 @@ sous_titre.pack(
 
 barre_controles = tk.Frame(
     conteneur,
-    bg=theme["fond_bas"]
+    bd=0
 )
 
 barre_controles.pack(
     fill="x",
-    padx=35,
-    pady=(18, 10)
+    pady=(0, 18)
 )
 
 
 # ============================================================
-# BOUTONS ARRONDIS
+# FONCTION PILULE
 # ============================================================
 
-def dessiner_bouton(
-    bouton_canvas,
+def dessiner_pilule(
+    canvas,
     largeur,
     hauteur,
     couleur,
-    texte,
-    couleur_texte
+    bordure=None
 ):
 
-    bouton_canvas.delete("all")
+    canvas.delete("pilule")
 
-    rayon = hauteur // 2
+    rayon = hauteur / 2
 
-    # Pas de contour :
-    # cela supprime la ligne bleue au survol.
 
-    bouton_canvas.create_rectangle(
+    canvas.create_rectangle(
         rayon,
-        0,
+        1,
         largeur - rayon,
-        hauteur,
+        hauteur - 1,
         fill=couleur,
-        outline=""
+        outline="",
+        tags="pilule"
     )
 
-    bouton_canvas.create_oval(
-        0,
-        0,
-        hauteur,
-        hauteur,
+
+    canvas.create_oval(
+        1,
+        1,
+        hauteur - 1,
+        hauteur - 1,
         fill=couleur,
-        outline=""
+        outline="",
+        tags="pilule"
     )
 
-    bouton_canvas.create_oval(
-        largeur - hauteur,
-        0,
-        largeur,
-        hauteur,
+
+    canvas.create_oval(
+        largeur - hauteur + 1,
+        1,
+        largeur - 1,
+        hauteur - 1,
         fill=couleur,
-        outline=""
+        outline="",
+        tags="pilule"
     )
 
-    bouton_canvas.create_text(
-        largeur // 2,
-        hauteur // 2,
-        text=texte,
-        fill=couleur_texte,
-        font=("Segoe UI", 10, "bold")
-    )
 
+    if bordure:
+
+        canvas.create_line(
+            rayon,
+            1,
+            largeur - rayon,
+            1,
+            fill=bordure,
+            width=1,
+            tags="pilule"
+        )
+
+
+# ============================================================
+# BOUTON VERRE
+# ============================================================
 
 def creer_bouton_verre(
     parent,
     texte,
     commande,
-    largeur=160
+    largeur=170,
+    hauteur=46
 ):
-
-    hauteur = 42
 
     bouton = tk.Canvas(
         parent,
         width=largeur,
         height=hauteur,
-        bg=theme["fond_bas"],
         highlightthickness=0,
         bd=0,
-        takefocus=0
+        cursor="hand2"
     )
 
-    bouton.pack(
-        side="left",
-        padx=6
-    )
 
     def normal():
-        dessiner_bouton(
+
+        dessiner_pilule(
             bouton,
             largeur,
             hauteur,
             theme["verre"],
-            texte,
-            theme["texte"]
+            theme["bordure"]
         )
 
-    def survol():
-        dessiner_bouton(
+
+    def hover():
+
+        dessiner_pilule(
             bouton,
             largeur,
             hauteur,
             theme["verre_hover"],
-            texte,
-            theme["texte"]
+            theme["accent2"]
         )
+
 
     normal()
 
+
+    texte_id = bouton.create_text(
+        largeur / 2,
+        hauteur / 2,
+        text=texte,
+        fill=theme["texte"],
+        font=(
+            "Segoe UI",
+            10,
+            "bold"
+        ),
+        tags="texte"
+    )
+
+
     bouton.bind(
         "<Enter>",
-        lambda event: survol()
+        lambda event: hover()
     )
+
 
     bouton.bind(
         "<Leave>",
         lambda event: normal()
     )
 
+
     bouton.bind(
         "<Button-1>",
         lambda event: commande()
     )
 
+
+    bouton.pilule_largeur = largeur
+    bouton.pilule_hauteur = hauteur
+    bouton.texte_id = texte_id
+    bouton.normal = normal
+    bouton.hover = hover
+
     return bouton
 
 
 # ============================================================
-# CHOIX DE PÉRIODE
+# BOUTON ACTIONS
+# ============================================================
+
+bouton_actions = creer_bouton_verre(
+    barre_controles,
+    "☰   Actions",
+    lambda: ouvrir_selection_actions(),
+    175,
+    48
+)
+
+bouton_actions.pack(
+    side="left",
+    padx=(0, 10)
+)
+
+
+# ============================================================
+# SÉLECTEUR DE PÉRIODE
 # ============================================================
 
 label_periode = tk.Label(
     barre_controles,
-    text="Période :",
-    font=("Segoe UI", 10, "bold"),
-    bg=theme["fond_bas"],
-    fg=theme["texte"]
+    text="Période",
+    font=(
+        "Segoe UI",
+        10,
+        "bold"
+    ),
+    bd=0
 )
 
 label_periode.pack(
     side="left",
-    padx=(0, 5)
+    padx=(12, 8)
 )
 
 
-def changer_periode(nouvelle_periode):
+bouton_periode = tk.Canvas(
+    barre_controles,
+    width=190,
+    height=48,
+    highlightthickness=0,
+    bd=0,
+    cursor="hand2"
+)
+
+bouton_periode.pack(
+    side="left"
+)
+
+
+def dessiner_bouton_periode():
+
+    dessiner_pilule(
+        bouton_periode,
+        190,
+        48,
+        theme["verre"],
+        theme["bordure"]
+    )
+
+
+dessiner_bouton_periode()
+
+
+texte_periode = bouton_periode.create_text(
+    95,
+    24,
+    text="24 h     ▾",
+    fill=theme["texte"],
+    font=(
+        "Segoe UI",
+        10,
+        "bold"
+    )
+)
+
+
+menu_periode = None
+
+
+def ouvrir_menu_periode():
+
+    global menu_periode
+
+    if menu_periode is not None:
+
+        try:
+
+            menu_periode.destroy()
+
+        except:
+
+            pass
+
+
+    menu_periode = tk.Toplevel(
+        fenetre
+    )
+
+    menu_periode.overrideredirect(True)
+
+    menu_periode.configure(
+        bg=theme["bordure"]
+    )
+
+
+    x = bouton_periode.winfo_rootx()
+
+    y = (
+        bouton_periode.winfo_rooty()
+        +
+        bouton_periode.winfo_height()
+        +
+        7
+    )
+
+
+    menu_periode.geometry(
+        f"220x270+{x}+{y}"
+    )
+
+
+    panneau = tk.Frame(
+        menu_periode,
+        bg=theme["panneau"],
+        bd=0
+    )
+
+    panneau.pack(
+        fill="both",
+        expand=True,
+        padx=1,
+        pady=1
+    )
+
+
+    for periode in periodes:
+
+        bouton = tk.Button(
+            panneau,
+            text=periode,
+            font=(
+                "Segoe UI",
+                10,
+                "bold"
+            ),
+            bg=theme["panneau"],
+            fg=theme["texte"],
+            activebackground=theme["verre_hover"],
+            activeforeground=theme["texte"],
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            anchor="w",
+            padx=18,
+            pady=9,
+            command=lambda p=periode:
+                choisir_periode(p)
+        )
+
+        bouton.pack(
+            fill="x"
+        )
+
+
+    menu_periode.focus_force()
+
+
+def choisir_periode(periode):
 
     global periode_actuelle
 
-    periode_actuelle = nouvelle_periode
+    periode_actuelle = periode
+
+
+    bouton_periode.itemconfig(
+        texte_periode,
+        text=f"{periode}     ▾"
+    )
+
+
+    fermer_menu_periode()
 
     actualiser()
 
 
-for nom_periode in periodes:
+def fermer_menu_periode():
 
-    creer_bouton_verre(
-        barre_controles,
-        nom_periode,
-        lambda p=nom_periode: changer_periode(p),
-        largeur=130
-    )
+    global menu_periode
+
+    if menu_periode is not None:
+
+        try:
+
+            menu_periode.destroy()
+
+        except:
+
+            pass
+
+        menu_periode = None
+
+
+bouton_periode.bind(
+    "<Button-1>",
+    lambda event: ouvrir_menu_periode()
+)
+
+
+bouton_periode.bind(
+    "<Enter>",
+    lambda event:
+        dessiner_pilule(
+            bouton_periode,
+            190,
+            48,
+            theme["verre_hover"],
+            theme["accent2"]
+        )
+)
+
+
+bouton_periode.bind(
+    "<Leave>",
+    lambda event:
+        dessiner_bouton_periode()
+)
 
 
 # ============================================================
-# BOUTON VALEURS
+# ESPACE
 # ============================================================
 
-creer_bouton_verre(
-    barre_controles,
-    "Choisir les valeurs",
-    lambda: ouvrir_selection_actions(),
-    largeur=175
+tk.Frame(
+    barre_controles
+).pack(
+    side="left",
+    expand=True
 )
 
 
@@ -571,221 +845,85 @@ creer_bouton_verre(
 # BOUTON THÈME
 # ============================================================
 
-def changer_theme():
-
-    global theme_actuel
-    global theme
-
-    if theme_actuel == "sombre":
-        theme_actuel = "clair"
-    else:
-        theme_actuel = "sombre"
-
-    theme = themes[theme_actuel]
-
-    appliquer_theme()
-
-
 bouton_theme = creer_bouton_verre(
     barre_controles,
-    "Mode sombre / clair",
-    changer_theme,
-    largeur=190
+    "☀   Clair",
+    lambda: changer_theme(),
+    145,
+    48
+)
+
+bouton_theme.pack(
+    side="right",
+    padx=(10, 0)
 )
 
 
 # ============================================================
-# ZONE GRAPHIQUE
+# PANNEAU GRAPHIQUE
 # ============================================================
 
 cadre_graphique = tk.Frame(
     conteneur,
-    bg=theme["panneau"],
-    highlightthickness=0,
-    bd=0
+    bd=0,
+    highlightthickness=1
 )
 
 cadre_graphique.pack(
     fill="both",
-    expand=True,
-    padx=35,
-    pady=(5, 5)
+    expand=True
 )
 
 
 # ============================================================
-# FIGURE MATPLOTLIB
+# GRAPHIQUE
 # ============================================================
 
-figure = plt.Figure(
-    figsize=(16, 8),
+figure, ax = plt.subplots(
+    figsize=(18, 10),
     dpi=180
 )
 
-ax = figure.add_subplot(
-    111
-)
 
 canvas_graphique = FigureCanvasTkAgg(
     figure,
     master=cadre_graphique
 )
 
+
 widget_graphique = canvas_graphique.get_tk_widget()
 
 widget_graphique.pack(
     fill="both",
     expand=True,
-    padx=8,
-    pady=8
+    padx=1,
+    pady=1
 )
 
 
 # ============================================================
-# LÉGENDE SÉPARÉE
-# ============================================================
-
-legende_externe = tk.Frame(
-    conteneur,
-    bg=theme["panneau2"],
-    highlightthickness=0,
-    bd=0
-)
-
-legende_externe.pack(
-    fill="x",
-    padx=35,
-    pady=(5, 5)
-)
-
-
-legende_interne = tk.Frame(
-    legende_externe,
-    bg=theme["panneau2"]
-)
-
-legende_interne.pack(
-    fill="x",
-    padx=10,
-    pady=7
-)
-
-
-def reconstruire_legende():
-
-    for widget in legende_interne.winfo_children():
-        widget.destroy()
-
-    nombre = len(actions_selectionnees)
-
-    if nombre == 0:
-
-        label = tk.Label(
-            legende_interne,
-            text="Aucune valeur sélectionnée",
-            font=("Segoe UI", 9),
-            bg=theme["panneau2"],
-            fg=theme["texte_secondaire"]
-        )
-
-        label.pack()
-
-        return
-
-    if nombre <= 4:
-        colonnes = nombre
-
-    elif nombre <= 12:
-        colonnes = 4
-
-    else:
-        colonnes = 6
-
-    for colonne in range(colonnes):
-
-        legende_interne.grid_columnconfigure(
-            colonne,
-            weight=1
-        )
-
-    for index, nom in enumerate(actions_selectionnees):
-
-        ligne = index // colonnes
-        colonne = index % colonnes
-
-        couleur = couleur_action(index)
-
-        cellule = tk.Frame(
-            legende_interne,
-            bg=theme["panneau2"]
-        )
-
-        cellule.grid(
-            row=ligne,
-            column=colonne,
-            sticky="w",
-            padx=8,
-            pady=2
-        )
-
-        point = tk.Canvas(
-            cellule,
-            width=12,
-            height=12,
-            bg=theme["panneau2"],
-            highlightthickness=0,
-            bd=0
-        )
-
-        point.pack(
-            side="left",
-            padx=(0, 5)
-        )
-
-        point.create_oval(
-            2,
-            2,
-            10,
-            10,
-            fill=couleur,
-            outline=""
-        )
-
-        texte = tk.Label(
-            cellule,
-            text=nom,
-            font=("Segoe UI", 8),
-            bg=theme["panneau2"],
-            fg=theme["texte"]
-        )
-
-        texte.pack(
-            side="left"
-        )
-
-
-# ============================================================
-# BARRE DU BAS
+# BARRE INFÉRIEURE
 # ============================================================
 
 barre_bas = tk.Frame(
     conteneur,
-    bg=theme["fond_bas"]
+    bd=0
 )
 
 barre_bas.pack(
     fill="x",
-    padx=35,
-    pady=(5, 20)
+    pady=(14, 5)
 )
 
 
 statut = tk.Label(
     barre_bas,
-    text="Prêt",
-    font=("Segoe UI", 10),
-    bg=theme["fond_bas"],
-    fg=theme["texte_secondaire"]
+    text="Initialisation...",
+    font=(
+        "Segoe UI",
+        10
+    ),
+    bd=0
 )
 
 statut.pack(
@@ -793,690 +931,192 @@ statut.pack(
 )
 
 
-# ============================================================
-# BOUTON ACTUALISER
-# ============================================================
-
-def bouton_actualiser():
-
-    actualiser()
-
-
-bouton_actualiser_canvas = creer_bouton_verre(
+bouton_actualiser = creer_bouton_verre(
     barre_bas,
-    "↻  Actualiser",
-    bouton_actualiser,
-    largeur=150
+    "↻   Actualiser",
+    lambda: actualiser(),
+    160,
+    45
+)
+
+bouton_actualiser.pack(
+    side="right"
 )
 
 
 # ============================================================
-# NORMALISATION DES DATES
+# THÈME
 # ============================================================
 
-def convertir_dates_france(index):
+def appliquer_theme():
 
-    index = pd.DatetimeIndex(index)
+    global theme
 
-    try:
+    if theme_sombre:
 
-        if index.tz is not None:
-
-            index = index.tz_convert(
-                "Europe/Paris"
-            )
-
-            index = index.tz_localize(
-                None
-            )
-
-    except Exception:
-        pass
-
-    return index
-
-
-# ============================================================
-# COUPER LES LIGNES ENTRE LES JOURS SANS DONNÉES
-# ============================================================
-
-def couper_weekends(dates, valeurs):
-
-    nouvelles_dates = []
-    nouvelles_valeurs = []
-
-    if len(dates) == 0:
-        return nouvelles_dates, nouvelles_valeurs
-
-    for i in range(len(dates)):
-
-        date_actuelle = pd.Timestamp(
-            dates[i]
-        ).to_pydatetime()
-
-        valeur_actuelle = valeurs[i]
-
-        nouvelles_dates.append(
-            date_actuelle
-        )
-
-        nouvelles_valeurs.append(
-            valeur_actuelle
-        )
-
-        if i < len(dates) - 1:
-
-            date_suivante = pd.Timestamp(
-                dates[i + 1]
-            ).to_pydatetime()
-
-            ecart_heures = (
-                date_suivante - date_actuelle
-            ).total_seconds() / 3600
-
-            # Plus de 24 h entre deux données :
-            # on insère NaN pour casser la courbe.
-            if ecart_heures > 24:
-
-                milieu = (
-                    date_actuelle
-                    +
-                    (date_suivante - date_actuelle) / 2
-                )
-
-                nouvelles_dates.append(
-                    milieu
-                )
-
-                nouvelles_valeurs.append(
-                    np.nan
-                )
-
-    return (
-        nouvelles_dates,
-        nouvelles_valeurs
-    )
-
-
-# ============================================================
-# FILTRAGE DES DONNÉES
-# ============================================================
-
-def filtrer_donnees(index, valeurs):
-
-    maintenant = datetime.now()
-
-    if len(index) == 0:
-        return index, valeurs
-
-    # 24 heures :
-    # on se base sur le dernier cours disponible
-    # pour éviter d'avoir un graphique vide le week-end.
-
-    if periode_actuelle == "24 h":
-
-        dernier = pd.Timestamp(
-            index[-1]
-        ).to_pydatetime()
-
-        debut = dernier - timedelta(
-            hours=24
-        )
-
-        masque = (
-            index >= debut
-        ) & (
-            index <= dernier
-        )
-
-    elif periode_actuelle == "1 semaine":
-
-        debut = maintenant - timedelta(
-            days=7
-        )
-
-        masque = (
-            index >= debut
-        )
-
-    elif periode_actuelle == "1 mois":
-
-        debut = maintenant - timedelta(
-            days=30
-        )
-
-        masque = (
-            index >= debut
-        )
-
-    elif periode_actuelle == "1 an":
-
-        debut = maintenant - timedelta(
-            days=365
-        )
-
-        masque = (
-            index >= debut
-        )
+        theme = THEME_SOMBRE
 
     else:
 
-        masque = np.ones(
-            len(index),
-            dtype=bool
-        )
+        theme = THEME_CLAIR
 
-    return (
-        index[masque],
-        valeurs[masque]
+
+    # Fond
+    fenetre.configure(
+        bg=theme["fond_bas"]
     )
 
 
-# ============================================================
-# CONFIGURATION DE L'AXE X
-# ============================================================
-
-def configurer_axe_dates():
-
-    maintenant = datetime.now()
-
-    if periode_actuelle == "24 h":
-
-        ax.xaxis.set_major_locator(
-            mdates.HourLocator(
-                interval=2
-            )
-        )
-
-        ax.xaxis.set_major_formatter(
-            mdates.DateFormatter(
-                "%H:%M"
-            )
-        )
-
-        # Pour le week-end, garder le dernier jour coté.
-        if lignes_graphique:
-
-            toutes_dates = []
-
-            for ligne in lignes_graphique:
-
-                x = ligne.get_xdata()
-
-                if len(x) > 0:
-                    toutes_dates.extend(x)
-
-            if toutes_dates:
-
-                dates_converties = [
-                    mdates.num2date(x).replace(
-                        tzinfo=None
-                    )
-                    for x in toutes_dates
-                    if np.isfinite(x)
-                ]
-
-                if dates_converties:
-
-                    fin = max(
-                        dates_converties
-                    )
-
-                    debut = fin - timedelta(
-                        hours=24
-                    )
-
-                    ax.set_xlim(
-                        debut,
-                        fin
-                    )
-
-    elif periode_actuelle == "1 semaine":
-
-        debut = maintenant - timedelta(
-            days=6
-        )
-
-        fin = maintenant
-
-        ax.set_xlim(
-            debut,
-            fin
-        )
-
-        ax.xaxis.set_major_locator(
-            mdates.DayLocator(
-                interval=1
-            )
-        )
-
-        ax.xaxis.set_major_formatter(
-            mdates.DateFormatter(
-                "%d/%m"
-            )
-        )
-
-    elif periode_actuelle == "1 mois":
-
-        debut = maintenant - timedelta(
-            days=29
-        )
-
-        fin = maintenant
-
-        ax.set_xlim(
-            debut,
-            fin
-        )
-
-        # Chaque jour est affiché.
-        ax.xaxis.set_major_locator(
-            mdates.DayLocator(
-                interval=1
-            )
-        )
-
-        ax.xaxis.set_major_formatter(
-            mdates.DateFormatter(
-                "%d/%m"
-            )
-        )
-
-    elif periode_actuelle == "1 an":
-
-        debut = maintenant - timedelta(
-            days=365
-        )
-
-        fin = maintenant
-
-        ax.set_xlim(
-            debut,
-            fin
-        )
-
-        ax.xaxis.set_major_locator(
-            mdates.MonthLocator(
-                interval=1
-            )
-        )
-
-        ax.xaxis.set_major_formatter(
-            mdates.DateFormatter(
-                "%m/%Y"
-            )
-        )
-
-    else:
-
-        # Depuis toujours
-        dates_min = None
-
-        for ligne in lignes_graphique:
-
-            x = ligne.get_xdata()
-
-            if len(x) > 0:
-
-                x_valides = [
-                    x_value
-                    for x_value in x
-                    if np.isfinite(x_value)
-                ]
-
-                if x_valides:
-
-                    minimum = min(
-                        x_valides
-                    )
-
-                    if (
-                        dates_min is None
-                        or minimum < dates_min
-                    ):
-                        dates_min = minimum
-
-        if dates_min is not None:
-
-            ax.set_xlim(
-                mdates.num2date(
-                    dates_min
-                ).replace(tzinfo=None),
-                maintenant
-            )
-
-        ax.xaxis.set_major_locator(
-            mdates.AutoDateLocator(
-                maxticks=12
-            )
-        )
-
-        ax.xaxis.set_major_formatter(
-            mdates.DateFormatter(
-                "%m/%Y"
-            )
-        )
-
-    ax.tick_params(
-        axis="x",
-        labelrotation=45,
-        labelsize=8,
-        colors=theme["texte_secondaire"]
-    )
-
-    ax.tick_params(
-        axis="y",
-        labelsize=9,
-        colors=theme["texte_secondaire"]
-    )
-
-
-# ============================================================
-# AFFICHAGE DU GRAPHIQUE
-# ============================================================
-
-def afficher_graphique(donnees):
-
-    global lignes_graphique
-    global tooltip
-
-    ax.clear()
-
-    lignes_graphique = []
-
-    ax.set_facecolor(
-        theme["graph_fond"]
-    )
-
-    figure.patch.set_facecolor(
-        theme["graph_fond"]
-    )
-
-    ax.grid(
-        True,
-        color=theme["graph_grille"],
-        alpha=0.35,
-        linewidth=0.7
-    )
-
-    for index, nom in enumerate(actions_selectionnees):
-
-        if nom not in donnees:
-            continue
-
-        serie = donnees[nom]
-
-        if serie is None or len(serie) == 0:
-            continue
-
-        dates = convertir_dates_france(
-            serie.index
-        )
-
-        valeurs = np.asarray(
-            serie.values,
-            dtype=float
-        )
-
-        dates, valeurs = filtrer_donnees(
-            dates,
-            valeurs
-        )
-
-        if len(dates) == 0:
-            continue
-
-        dates_graphique, valeurs_graphique = couper_weekends(
-            dates,
-            valeurs
-        )
-
-        couleur = couleur_action(
-            index
-        )
-
-        ligne, = ax.plot(
-            dates_graphique,
-            valeurs_graphique,
-            color=couleur,
-            linewidth=1.8,
-            alpha=0.96,
-            solid_capstyle="round",
-            solid_joinstyle="round",
-            antialiased=True,
-            picker=7
-        )
-
-        ligne.nom_action = nom
-
-        lignes_graphique.append(
-            ligne
-        )
-
-    # --------------------------------------------------------
-    # TITRE
-    # --------------------------------------------------------
-
-    ax.set_title(
-        f"Évolution des valeurs — {periode_actuelle}",
-        fontsize=15,
-        fontweight="bold",
-        color=theme["texte"],
-        pad=15
-    )
-
-    ax.set_ylabel(
-        "Cours (€)",
-        color=theme["texte_secondaire"],
-        fontsize=10
-    )
-
-    ax.set_xlabel(
-        "",
-        color=theme["texte_secondaire"]
-    )
-
-    # --------------------------------------------------------
-    # AXE DES DATES
-    # --------------------------------------------------------
-
-    configurer_axe_dates()
-
-    # --------------------------------------------------------
-    # BORDURES
-    # --------------------------------------------------------
-
-    for bordure in ax.spines.values():
-
-        bordure.set_color(
-            theme["graph_grille"]
-        )
-
-    # --------------------------------------------------------
-    # MISE EN PAGE
-    # --------------------------------------------------------
-
-    figure.subplots_adjust(
-        left=0.06,
-        right=0.98,
-        top=0.91,
-        bottom=0.16
-    )
-
-    # --------------------------------------------------------
-    # TOOLTIP
-    # --------------------------------------------------------
-
-    tooltip = ax.annotate(
-        "",
-        xy=(0, 0),
-        xytext=(15, 15),
-        textcoords="offset points",
-
-        bbox=dict(
-            boxstyle="round,pad=0.5",
-            fc=theme["panneau"],
-            ec=theme["bordure"],
-            alpha=0.96
-        ),
-
-        color=theme["texte"],
-        fontsize=9
-    )
-
-    tooltip.set_visible(
-        False
-    )
-
-    canvas_graphique.draw_idle()
-
-
-# ============================================================
-# TOOLTIP AU SURVOL
-# ============================================================
-
-def afficher_tooltip(event):
-
-    global tooltip
-
-    if (
-        event.inaxes != ax
-        or not lignes_graphique
-    ):
-        if tooltip is not None:
-            tooltip.set_visible(False)
-            canvas_graphique.draw_idle()
-
-        return
-
-    meilleur = None
-    meilleure_distance = float("inf")
-
-    for ligne in lignes_graphique:
-
-        try:
-
-            contient, info = ligne.contains(
-                event
-            )
-
-            if contient:
-
-                xdata = ligne.get_xdata()
-                ydata = ligne.get_ydata()
-
-                index = info["ind"][0]
-
-                if index < len(xdata):
-
-                    distance = abs(
-                        xdata[index] - event.xdata
-                    )
-
-                    if distance < meilleure_distance:
-
-                        meilleure_distance = distance
-
-                        meilleur = (
-                            ligne,
-                            index
-                        )
-
-        except Exception:
-            pass
-
-    if meilleur is None:
-
-        if tooltip is not None:
-            tooltip.set_visible(False)
-
-        canvas_graphique.draw_idle()
-
-        return
-
-    ligne, index = meilleur
-
-    x = ligne.get_xdata()[index]
-    y = ligne.get_ydata()[index]
-
-    if not np.isfinite(x) or not np.isfinite(y):
-
-        tooltip.set_visible(False)
-        canvas_graphique.draw_idle()
-
-        return
-
-    date = mdates.num2date(
-        x
-    ).replace(
-        tzinfo=None
-    )
-
-    if periode_actuelle in [
-        "1 an",
-        "Depuis toujours"
+    # Cadres
+    for cadre in [
+        conteneur,
+        entete,
+        bloc_titre,
+        bloc_live,
+        barre_controles,
+        barre_bas
     ]:
 
-        date_texte = date.strftime(
-            "%d/%m/%Y"
+        cadre.configure(
+            bg=theme["fond_bas"]
+        )
+
+
+    # Texte
+    titre.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte"]
+    )
+
+
+    sous_titre.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte_secondaire"]
+    )
+
+
+    label_live.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte_secondaire"]
+    )
+
+
+    label_periode.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte_secondaire"]
+    )
+
+
+    statut.configure(
+        bg=theme["fond_bas"],
+        fg=theme["texte_secondaire"]
+    )
+
+
+    # Boutons
+    for bouton in [
+        bouton_actions,
+        bouton_theme,
+        bouton_actualiser
+    ]:
+
+        bouton.configure(
+            bg=theme["fond_bas"]
+        )
+
+        bouton.normal()
+
+        bouton.itemconfig(
+            bouton.texte_id,
+            fill=theme["texte"]
+        )
+
+
+    bouton_periode.configure(
+        bg=theme["fond_bas"]
+    )
+
+    dessiner_bouton_periode()
+
+    bouton_periode.itemconfig(
+        texte_periode,
+        fill=theme["texte"]
+    )
+
+
+    if theme_sombre:
+
+        bouton_theme.itemconfig(
+            bouton_theme.texte_id,
+            text="☀   Clair"
         )
 
     else:
 
-        date_texte = date.strftime(
-            "%d/%m/%Y %H:%M"
+        bouton_theme.itemconfig(
+            bouton_theme.texte_id,
+            text="☾   Sombre"
         )
 
-    texte = (
-        f"{ligne.nom_action}\n"
-        f"{date_texte}\n"
-        f"{y:.2f} €"
+
+    cadre_graphique.configure(
+        bg=theme["bordure"],
+        highlightbackground=theme["bordure"]
     )
 
-    tooltip.xy = (
-        x,
-        y
+
+    dessiner_degrade()
+
+    afficher_graphique(
+        donnees_actuelles
     )
 
-    tooltip.set_text(
-        texte
-    )
 
-    tooltip.set_visible(
-        True
-    )
+# ============================================================
+# CHANGER DE THÈME
+# ============================================================
 
-    canvas_graphique.draw_idle()
+def changer_theme():
 
+    global theme_sombre
 
-canvas_graphique.mpl_connect(
-    "motion_notify_event",
-    afficher_tooltip
-)
+    theme_sombre = not theme_sombre
+
+    appliquer_theme()
 
 
 # ============================================================
 # TÉLÉCHARGEMENT DES DONNÉES
 # ============================================================
 
-def telecharger_donnees():
-
-    donnees = {}
+def recuperer_donnees():
 
     configuration = periodes[
         periode_actuelle
     ]
 
+    donnees = {}
+
+
     for nom in actions_selectionnees:
+
+        symbole = actions_cac40[nom]
+
 
         try:
 
-            ticker = actions_cac40[
-                nom
-            ]
+            statut_temp = (
+                f"Téléchargement de {nom}..."
+            )
+
+
+            print(
+                statut_temp
+            )
+
 
             data = yf.download(
-                ticker,
+                symbole,
                 period=configuration["period"],
                 interval=configuration["interval"],
                 auto_adjust=False,
@@ -1484,46 +1124,531 @@ def telecharger_donnees():
                 threads=False
             )
 
-            if data is None or data.empty:
 
-                continue
+            donnees[nom] = data
 
-            if "Close" not in data.columns:
-
-                continue
-
-            cours = data["Close"]
-
-            # Dans certains cas yfinance renvoie
-            # un DataFrame au lieu d'une série.
-
-            if isinstance(
-                cours,
-                pd.DataFrame
-            ):
-
-                if ticker in cours.columns:
-
-                    cours = cours[ticker]
-
-                else:
-
-                    cours = cours.iloc[:, 0]
-
-            cours = cours.dropna()
-
-            if len(cours) == 0:
-                continue
-
-            donnees[nom] = cours
 
         except Exception as erreur:
 
             print(
-                f"Erreur pour {nom} : {erreur}"
+                f"Erreur {nom} : {erreur}"
             )
 
+            donnees[nom] = None
+
+
     return donnees
+
+
+# ============================================================
+# ============================================================
+# COMPLÉTER LES PÉRIODES SANS DONNÉES
+# ============================================================
+def completer_donnees_sans_trou(dates, valeurs):
+    """Prolonge horizontalement la dernière valeur connue."""
+    if len(dates) == 0:
+        return list(dates), list(valeurs)
+
+    dates = list(dates)
+    valeurs = list(valeurs)
+    nouvelles_dates = []
+    nouvelles_valeurs = []
+
+    for i in range(len(dates) - 1):
+        date_actuelle = pd.Timestamp(dates[i]).to_pydatetime()
+        valeur_actuelle = float(valeurs[i])
+        date_suivante = pd.Timestamp(dates[i + 1]).to_pydatetime()
+
+        nouvelles_dates.append(date_actuelle)
+        nouvelles_valeurs.append(valeur_actuelle)
+
+        if date_suivante - date_actuelle > timedelta(hours=24):
+            jour = date_actuelle + timedelta(days=1)
+            while jour < date_suivante:
+                nouvelles_dates.append(jour)
+                nouvelles_valeurs.append(valeur_actuelle)
+                jour += timedelta(days=1)
+
+    nouvelles_dates.append(pd.Timestamp(dates[-1]).to_pydatetime())
+    nouvelles_valeurs.append(float(valeurs[-1]))
+    return nouvelles_dates, nouvelles_valeurs
+
+
+# AFFICHAGE DU GRAPHIQUE
+# ============================================================
+
+def afficher_graphique(donnees):
+
+    global donnees_actuelles
+    global lignes
+    global annotations
+    global couleurs_actions
+
+
+    donnees_actuelles = donnees
+
+
+    # Nettoyage
+    for annotation in annotations:
+
+        try:
+
+            annotation.remove()
+
+        except:
+
+            pass
+
+
+    annotations = []
+
+    lignes = {}
+
+
+    ax.clear()
+
+
+    # Couleurs du graphique
+    ax.set_facecolor(
+        theme["panneau"]
+    )
+
+
+    figure.patch.set_facecolor(
+        theme["panneau"]
+    )
+
+
+    # ========================================================
+    # COULEURS
+    # ========================================================
+
+    couleurs_actions = {}
+
+
+    for i, nom in enumerate(
+        actions_selectionnees
+    ):
+
+        couleurs_actions[nom] = (
+            COULEURS_COURBES[
+                i % len(COULEURS_COURBES)
+            ]
+        )
+
+
+    # ========================================================
+    # COURBES
+    # ========================================================
+
+    for nom in actions_selectionnees:
+
+        data = donnees.get(nom)
+
+
+        if data is None:
+            continue
+
+
+        if data.empty:
+            continue
+
+
+        try:
+
+            cours = data["Close"]
+
+
+            if hasattr(
+                cours,
+                "columns"
+            ):
+
+                cours = cours.iloc[:, 0]
+
+
+            cours = cours.dropna()
+
+
+            if len(cours) < 2:
+                continue
+
+
+            dates = cours.index
+
+
+            valeurs = np.asarray(
+                cours.values,
+                dtype=float
+            )
+
+
+            couleur = couleurs_actions[nom]
+
+
+            # WEEK-END / ABSENCE DE DONNÉES
+            # La dernière valeur connue est prolongée horizontalement
+            # pendant les périodes sans cotation.
+            dates_completes, valeurs_completes = completer_donnees_sans_trou(dates, valeurs)
+
+            ligne, = ax.plot(
+                dates_completes, valeurs_completes,
+                color=couleur, linewidth=1.8, alpha=0.96,
+                solid_capstyle="round", solid_joinstyle="round",
+                antialiased=True, picker=7, label=nom
+            )
+
+            ax.plot(
+                dates_completes, valeurs_completes,
+                color=couleur, linewidth=5, alpha=0.035,
+                solid_capstyle="round", antialiased=True
+            )
+
+            # Les points ne sont affichés que sur les vraies cotations.
+            if len(dates) < 250:
+                ax.scatter(dates, valeurs, color=couleur, s=7, alpha=0.55, linewidths=0)
+
+            lignes[nom] = {
+                "ligne": ligne,
+                "dates": dates,
+                "valeurs": valeurs,
+                "dates_completes": dates_completes,
+                "valeurs_completes": valeurs_completes
+            }
+
+        except Exception as erreur:
+            print(
+                "Erreur graphique :",
+                erreur
+            )
+
+
+    # ========================================================
+    # TITRE
+    # ========================================================
+
+    ax.set_title(
+        f"{periode_actuelle}",
+        color=theme["texte"],
+        fontsize=18,
+        fontweight="bold",
+        loc="left",
+        pad=18
+    )
+
+
+    # ========================================================
+    # AXES
+    # ========================================================
+
+    ax.set_xlabel(
+        "",
+        color=theme["texte_secondaire"]
+    )
+
+
+    ax.set_ylabel(
+        "Cours (€)",
+        color=theme["texte_secondaire"],
+        fontsize=10
+    )
+
+
+    # ========================================================
+    # DATES
+    # ========================================================
+
+    locator = mdates.AutoDateLocator(
+        minticks=7,
+        maxticks=12
+    )
+
+
+    formatter = mdates.ConciseDateFormatter(
+        locator
+    )
+
+
+    ax.xaxis.set_major_locator(
+        locator
+    )
+
+
+    ax.xaxis.set_major_formatter(
+        formatter
+    )
+
+
+    # ========================================================
+    # GRILLE
+    # ========================================================
+
+    ax.grid(
+        True,
+        which="major",
+        color=theme["grille"],
+        alpha=0.16,
+        linewidth=0.7
+    )
+
+
+    ax.grid(
+        True,
+        which="minor",
+        color=theme["grille"],
+        alpha=0.06,
+        linewidth=0.45
+    )
+
+
+    ax.minorticks_on()
+
+
+    # ========================================================
+    # AXES
+    # ========================================================
+
+    ax.tick_params(
+        axis="x",
+        colors=theme["texte_secondaire"],
+        labelsize=9,
+        length=0,
+        pad=9
+    )
+
+
+    ax.tick_params(
+        axis="y",
+        colors=theme["texte_secondaire"],
+        labelsize=9,
+        length=0,
+        pad=8
+    )
+
+
+    for bordure in ax.spines.values():
+
+        bordure.set_visible(False)
+
+
+    # ========================================================
+    # LÉGENDE
+    # ========================================================
+
+    if lignes:
+
+        legende = ax.legend(
+            loc="upper right",
+            frameon=False,
+            fontsize=10,
+            ncol=min(
+                len(lignes),
+                4
+            )
+        )
+
+
+        for texte in legende.get_texts():
+
+            texte.set_color(
+                theme["texte"]
+            )
+
+
+    # ========================================================
+    # DERNIÈRE MISE À JOUR
+    # ========================================================
+
+    heure = datetime.now().strftime(
+        "%H:%M:%S"
+    )
+
+
+    ax.text(
+        0.0,
+        -0.09,
+        f"Dernière mise à jour : {heure}",
+        transform=ax.transAxes,
+        color=theme["texte_secondaire"],
+        fontsize=8
+    )
+
+
+    figure.subplots_adjust(
+        left=0.055,
+        right=0.985,
+        top=0.91,
+        bottom=0.13
+    )
+
+
+    canvas_graphique.draw_idle()
+
+
+# ============================================================
+# SURVOL DU GRAPHIQUE
+# ============================================================
+
+def afficher_info_souris(event):
+
+    global annotations
+
+
+    for annotation in annotations:
+
+        try:
+
+            annotation.remove()
+
+        except:
+
+            pass
+
+
+    annotations = []
+
+
+    if event.inaxes != ax:
+
+        canvas_graphique.draw_idle()
+
+        return
+
+
+    meilleure_distance = float("inf")
+
+    meilleure_info = None
+
+
+    for nom, infos in lignes.items():
+
+        dates = infos["dates"]
+
+        valeurs = infos["valeurs"]
+
+        ligne = infos["ligne"]
+
+
+        try:
+
+            points = np.column_stack(
+                [
+                    mdates.date2num(dates),
+                    valeurs
+                ]
+            )
+
+
+            points_ecran = ax.transData.transform(
+                points
+            )
+
+
+            distances = np.sqrt(
+                (
+                    points_ecran[:, 0]
+                    -
+                    event.x
+                ) ** 2
+                +
+                (
+                    points_ecran[:, 1]
+                    -
+                    event.y
+                ) ** 2
+            )
+
+
+            index = int(
+                np.argmin(distances)
+            )
+
+
+            distance = distances[index]
+
+
+            if distance < meilleure_distance:
+
+                meilleure_distance = distance
+
+                meilleure_info = (
+                    nom,
+                    dates[index],
+                    valeurs[index],
+                    mdates.date2num(
+                        dates[index]
+                    )
+                )
+
+
+        except:
+
+            pass
+
+
+    if (
+        meilleure_info is None
+        or
+        meilleure_distance > 35
+    ):
+
+        canvas_graphique.draw_idle()
+
+        return
+
+
+    nom, date, valeur, x = (
+        meilleure_info
+    )
+
+
+    texte = (
+        f"{nom}\n"
+        f"{date.strftime('%d/%m/%Y %H:%M')}\n"
+        f"{valeur:.2f} €"
+    )
+
+
+    couleur = couleurs_actions[
+        nom
+    ]
+
+
+    annotation = ax.annotate(
+        texte,
+        xy=(x, valeur),
+        xytext=(16, 16),
+        textcoords="offset points",
+        fontsize=10,
+        fontweight="bold",
+        color=theme["texte"],
+        bbox=dict(
+            boxstyle="round,pad=0.65",
+            facecolor=theme["panneau2"],
+            edgecolor=couleur,
+            linewidth=1.2,
+            alpha=0.97
+        ),
+        arrowprops=dict(
+            arrowstyle="-",
+            color=couleur,
+            linewidth=1.2
+        )
+    )
+
+
+    annotations.append(
+        annotation
+    )
+
+
+    canvas_graphique.draw_idle()
+
+
+canvas_graphique.mpl_connect(
+    "motion_notify_event",
+    afficher_info_souris
+)
 
 
 # ============================================================
@@ -1532,107 +1657,440 @@ def telecharger_donnees():
 
 def actualiser():
 
-    global chargement
+    bouton_actualiser.itemconfig(
+        bouton_actualiser.texte_id,
+        text="↻   Chargement..."
+    )
 
-    if chargement:
+
+    statut.configure(
+        text=(
+            f"Récupération des données "
+            f"• {periode_actuelle}"
+        )
+    )
+
+
+    def travail():
+
+        donnees = recuperer_donnees()
+
+
+        fenetre.after(
+            0,
+            lambda:
+                terminer_actualisation(
+                    donnees
+                )
+        )
+
+
+    threading.Thread(
+        target=travail,
+        daemon=True
+    ).start()
+
+
+# ============================================================
+# FIN ACTUALISATION
+# ============================================================
+
+def terminer_actualisation(donnees):
+
+    afficher_graphique(
+        donnees
+    )
+
+
+    bouton_actualiser.itemconfig(
+        bouton_actualiser.texte_id,
+        text="↻   Actualiser"
+    )
+
+
+    heure = datetime.now().strftime(
+        "%H:%M:%S"
+    )
+
+
+    statut.configure(
+        text=f"● Données mises à jour à {heure}"
+    )
+
+
+# ============================================================
+# SÉLECTION DES ACTIONS
+# ============================================================
+
+def ouvrir_selection_actions():
+
+    fenetre_selection = tk.Toplevel(
+        fenetre
+    )
+
+
+    fenetre_selection.title(
+        "Sélection des actions"
+    )
+
+
+    fenetre_selection.geometry(
+        "820x800"
+    )
+
+
+    fenetre_selection.configure(
+        bg=theme["fond_haut"]
+    )
+
+
+    fenetre_selection.transient(
+        fenetre
+    )
+
+
+    # ========================================================
+    # TITRE
+    # ========================================================
+
+    titre_selection = tk.Label(
+        fenetre_selection,
+        text="Actions du CAC 40",
+        font=(
+            "Segoe UI",
+            25,
+            "bold"
+        ),
+        bg=theme["fond_haut"],
+        fg=theme["texte"]
+    )
+
+
+    titre_selection.pack(
+        pady=(25, 3)
+    )
+
+
+    sous_titre_selection = tk.Label(
+        fenetre_selection,
+        text="Sélectionne les valeurs à afficher",
+        font=(
+            "Segoe UI",
+            11
+        ),
+        bg=theme["fond_haut"],
+        fg=theme["texte_secondaire"]
+    )
+
+
+    sous_titre_selection.pack(
+        pady=(0, 20)
+    )
+
+
+    # ========================================================
+    # LISTE
+    # ========================================================
+
+    cadre_liste = tk.Frame(
+        fenetre_selection,
+        bg=theme["panneau"],
+        highlightthickness=1,
+        highlightbackground=theme["bordure"]
+    )
+
+
+    cadre_liste.pack(
+        fill="both",
+        expand=True,
+        padx=30,
+        pady=5
+    )
+
+
+    canvas_selection = tk.Canvas(
+        cadre_liste,
+        bg=theme["panneau"],
+        highlightthickness=0,
+        bd=0
+    )
+
+
+    scrollbar = tk.Scrollbar(
+        cadre_liste,
+        orient="vertical",
+        command=canvas_selection.yview
+    )
+
+
+    cadre_cases = tk.Frame(
+        canvas_selection,
+        bg=theme["panneau"]
+    )
+
+
+    canvas_selection.create_window(
+        (0, 0),
+        window=cadre_cases,
+        anchor="nw"
+    )
+
+
+    canvas_selection.configure(
+        yscrollcommand=scrollbar.set
+    )
+
+
+    canvas_selection.pack(
+        side="left",
+        fill="both",
+        expand=True
+    )
+
+
+    scrollbar.pack(
+        side="right",
+        fill="y"
+    )
+
+
+    variables = {}
+
+
+    for index, nom in enumerate(
+        actions_cac40
+    ):
+
+        variable = tk.BooleanVar(
+            value=(
+                nom
+                in actions_selectionnees
+            )
+        )
+
+
+        variables[nom] = variable
+
+
+        case = tk.Checkbutton(
+            cadre_cases,
+            text=nom,
+            variable=variable,
+            anchor="w",
+            font=(
+                "Segoe UI",
+                10
+            ),
+            bg=theme["panneau"],
+            fg=theme["texte"],
+            activebackground=theme["panneau"],
+            activeforeground=theme["texte"],
+            selectcolor=theme["verre"],
+            relief="flat",
+            bd=0,
+            padx=18,
+            pady=8
+        )
+
+
+        case.grid(
+            row=index // 2,
+            column=index % 2,
+            sticky="ew",
+            padx=12,
+            pady=2
+        )
+
+
+    cadre_cases.columnconfigure(
+        0,
+        weight=1
+    )
+
+
+    cadre_cases.columnconfigure(
+        1,
+        weight=1
+    )
+
+
+    def maj_scroll(event=None):
+
+        canvas_selection.configure(
+            scrollregion=canvas_selection.bbox(
+                "all"
+            )
+        )
+
+
+    cadre_cases.bind(
+        "<Configure>",
+        maj_scroll
+    )
+
+
+    # ========================================================
+    # BOUTONS
+    # ========================================================
+
+    cadre_boutons = tk.Frame(
+        fenetre_selection,
+        bg=theme["fond_haut"]
+    )
+
+
+    cadre_boutons.pack(
+        fill="x",
+        padx=30,
+        pady=(15, 25)
+    )
+
+
+    def selectionner_tout():
+
+        for variable in variables.values():
+
+            variable.set(True)
+
+
+    bouton_tout = creer_bouton_verre(
+        cadre_boutons,
+        "Tout sélectionner",
+        selectionner_tout,
+        190,
+        45
+    )
+
+
+    bouton_tout.pack(
+        side="left"
+    )
+
+
+    def deselectionner_tout():
+
+        for variable in variables.values():
+
+            variable.set(False)
+
+
+    bouton_aucun = creer_bouton_verre(
+        cadre_boutons,
+        "Tout désélectionner",
+        deselectionner_tout,
+        205,
+        45
+    )
+
+
+    bouton_aucun.pack(
+        side="left",
+        padx=10
+    )
+
+
+    def valider():
+
+        global actions_selectionnees
+
+
+        selection = {
+            nom
+            for nom, variable
+            in variables.items()
+            if variable.get()
+        }
+
+
+        if not selection:
+
+            statut.configure(
+                text=(
+                    "⚠ Sélectionne au moins "
+                    "une action."
+                )
+            )
+
+            return
+
+
+        actions_selectionnees = selection
+
+        fenetre_selection.destroy()
+
+        actualiser()
+
+
+    bouton_valider = creer_bouton_verre(
+        cadre_boutons,
+        "✓   Valider",
+        valider,
+        155,
+        45
+    )
+
+
+    bouton_valider.pack(
+        side="right"
+    )
+
+
+# ============================================================
+# REDIMENSIONNEMENT
+# ============================================================
+
+def redimensionner(event=None):
+
+    dessiner_degrade()
+
+
+fond.bind(
+    "<Configure>",
+    redimensionner
+)
+
+
+# ============================================================
+# QUALITÉ GRAPHIQUE AUTOMATIQUE
+# ============================================================
+
+def adapter_graphique(event=None):
+
+    largeur = cadre_graphique.winfo_width()
+
+    hauteur = cadre_graphique.winfo_height()
+
+
+    if largeur < 50:
         return
 
-    chargement = True
 
-    statut.config(
-        text="Téléchargement des données..."
+    if hauteur < 50:
+        return
+
+
+    dpi = 180
+
+
+    figure.set_dpi(
+        dpi
     )
 
-    bouton_actualiser_canvas.config(
-        state="disabled"
+
+    figure.set_size_inches(
+        largeur / dpi,
+        hauteur / dpi,
+        forward=False
     )
 
-    thread = threading.Thread(
-        target=actualiser_thread,
-        daemon=True
-    )
 
-    thread.start()
+    canvas_graphique.draw_idle()
 
 
-def actualiser_thread():
-
-    try:
-
-        donnees = telecharger_donnees()
-
-        fenetre.after(
-            0,
-            lambda: actualisation_terminee(
-                donnees
-            )
-        )
-
-    except Exception as erreur:
-
-        fenetre.after(
-            0,
-            lambda: actualisation_erreur(
-                erreur
-            )
-        )
-
-
-def actualisation_terminee(donnees):
-
-    global chargement
-
-    chargement = False
-
-    bouton_actualiser_canvas.config(
-        state="normal"
-    )
-
-    if donnees:
-
-        afficher_graphique(
-            donnees
-        )
-
-        maintenant = datetime.now().strftime(
-            "%d/%m/%Y %H:%M"
-        )
-
-        statut.config(
-            text=f"Dernière actualisation : {maintenant}"
-        )
-
-    else:
-
-        afficher_graphique(
-            {}
-        )
-
-        statut.config(
-            text="Aucune donnée disponible."
-        )
-
-    reconstruire_legende()
-
-
-def actualisation_erreur(erreur):
-
-    global chargement
-
-    chargement = False
-
-    bouton_actualiser_canvas.config(
-        state="normal"
-    )
-
-    statut.config(
-        text="Erreur pendant le téléchargement."
-    )
-
-    print(
-        "Erreur :",
-        erreur
-    )
+cadre_graphique.bind(
+    "<Configure>",
+    adapter_graphique
+)
 
 
 # ============================================================
@@ -1643,650 +2101,11 @@ def actualisation_automatique():
 
     actualiser()
 
+
     fenetre.after(
         60 * 60 * 1000,
         actualisation_automatique
     )
-
-
-# ============================================================
-# POPUP SÉLECTION DES ACTIONS
-# ============================================================
-
-def ouvrir_selection_actions():
-
-    popup = tk.Toplevel(
-        fenetre
-    )
-
-    popup.title(
-        "Choisir les valeurs"
-    )
-
-    popup.geometry(
-        "850x760"
-    )
-
-    popup.minsize(
-        700,
-        600
-    )
-
-    popup.configure(
-        bg=theme["fond_bas"]
-    )
-
-    popup.transient(
-        fenetre
-    )
-
-    # --------------------------------------------------------
-    # TITRE
-    # --------------------------------------------------------
-
-    titre_popup = tk.Label(
-        popup,
-        text="Valeurs du CAC 40",
-        font=("Segoe UI", 20, "bold"),
-        bg=theme["fond_bas"],
-        fg=theme["texte"]
-    )
-
-    titre_popup.pack(
-        pady=(20, 5)
-    )
-
-    sous_titre_popup = tk.Label(
-        popup,
-        text="Sélectionne les valeurs que tu veux afficher.",
-        font=("Segoe UI", 10),
-        bg=theme["fond_bas"],
-        fg=theme["texte_secondaire"]
-    )
-
-    sous_titre_popup.pack(
-        pady=(0, 15)
-    )
-
-    # --------------------------------------------------------
-    # BOUTONS TOUT / RIEN
-    # --------------------------------------------------------
-
-    barre_selection = tk.Frame(
-        popup,
-        bg=theme["fond_bas"]
-    )
-
-    barre_selection.pack(
-        fill="x",
-        padx=20,
-        pady=(0, 10)
-    )
-
-    def tout_selectionner():
-
-        for nom in variables:
-
-            variables[nom].set(
-                True
-            )
-
-    def tout_deselectionner():
-
-        for nom in variables:
-
-            variables[nom].set(
-                False
-            )
-
-    creer_bouton_verre(
-        barre_selection,
-        "Tout sélectionner",
-        tout_selectionner,
-        largeur=175
-    )
-
-    creer_bouton_verre(
-        barre_selection,
-        "Tout désélectionner",
-        tout_deselectionner,
-        largeur=185
-    )
-
-    # --------------------------------------------------------
-    # ZONE SCROLLABLE
-    # --------------------------------------------------------
-
-    cadre_scroll = tk.Frame(
-        popup,
-        bg=theme["panneau"]
-    )
-
-    cadre_scroll.pack(
-        fill="both",
-        expand=True,
-        padx=20,
-        pady=5
-    )
-
-    canvas_scroll = tk.Canvas(
-        cadre_scroll,
-        bg=theme["panneau"],
-        highlightthickness=0,
-        bd=0
-    )
-
-    scrollbar = tk.Scrollbar(
-        cadre_scroll,
-        orient="vertical",
-        command=canvas_scroll.yview
-    )
-
-    contenu_scroll = tk.Frame(
-        canvas_scroll,
-        bg=theme["panneau"]
-    )
-
-    contenu_scroll.bind(
-        "<Configure>",
-        lambda event: canvas_scroll.configure(
-            scrollregion=canvas_scroll.bbox("all")
-        )
-    )
-
-    canvas_scroll.create_window(
-        (0, 0),
-        window=contenu_scroll,
-        anchor="nw"
-    )
-
-    canvas_scroll.configure(
-        yscrollcommand=scrollbar.set
-    )
-
-    canvas_scroll.pack(
-        side="left",
-        fill="both",
-        expand=True
-    )
-
-    scrollbar.pack(
-        side="right",
-        fill="y"
-    )
-
-    # --------------------------------------------------------
-    # VARIABLES
-    # --------------------------------------------------------
-
-    variables = {}
-
-    noms = list(
-        actions_cac40.keys()
-    )
-
-    for nom in noms:
-
-        variables[nom] = tk.BooleanVar(
-            value=nom in actions_selectionnees
-        )
-
-    # --------------------------------------------------------
-    # CHECKBUTTONS
-    # --------------------------------------------------------
-
-    for index, nom in enumerate(noms):
-
-        colonne = index % 2
-        ligne = index // 2
-
-        check = tk.Checkbutton(
-            contenu_scroll,
-            text=nom,
-            variable=variables[nom],
-
-            font=("Segoe UI", 10),
-
-            bg=theme["panneau"],
-            fg=theme["texte"],
-
-            activebackground=theme["panneau"],
-            activeforeground=theme["texte"],
-
-            selectcolor=theme["accent"],
-
-            highlightthickness=0,
-            bd=0,
-
-            takefocus=0,
-
-            anchor="w"
-        )
-
-        check.grid(
-            row=ligne,
-            column=colonne,
-            sticky="ew",
-            padx=15,
-            pady=6
-        )
-
-    contenu_scroll.grid_columnconfigure(
-        0,
-        weight=1
-    )
-
-    contenu_scroll.grid_columnconfigure(
-        1,
-        weight=1
-    )
-
-    # --------------------------------------------------------
-    # VALIDER
-    # --------------------------------------------------------
-
-    def valider():
-
-        global actions_selectionnees
-
-        actions_selectionnees = [
-            nom
-            for nom in noms
-            if variables[nom].get()
-        ]
-
-        popup.destroy()
-
-        reconstruire_legende()
-
-        actualiser()
-
-    bouton_valider = tk.Button(
-        popup,
-        text="Afficher les valeurs",
-        command=valider,
-
-        font=("Segoe UI", 11, "bold"),
-
-        bg=theme["accent"],
-        fg="white",
-
-        activebackground=theme["accent_hover"],
-        activeforeground="white",
-
-        bd=0,
-        relief="flat",
-
-        padx=25,
-        pady=10,
-
-        cursor="hand2",
-
-        highlightthickness=0
-    )
-
-    bouton_valider.pack(
-        pady=15
-    )
-
-
-# ============================================================
-# POPUP WEEK-END
-# ============================================================
-
-def afficher_popup_weekend():
-
-    global popup_weekend_deja_affiche
-
-    if popup_weekend_deja_affiche:
-        return
-
-    # 5 = samedi
-    # 6 = dimanche
-
-    if datetime.now().weekday() < 5:
-        return
-
-    popup_weekend_deja_affiche = True
-
-    popup = tk.Toplevel(
-        fenetre
-    )
-
-    popup.title(
-        "Bourse fermée"
-    )
-
-    popup.geometry(
-        "480x260"
-    )
-
-    popup.resizable(
-        False,
-        False
-    )
-
-    popup.configure(
-        bg=theme["panneau"]
-    )
-
-    popup.transient(
-        fenetre
-    )
-
-    # --------------------------------------------------------
-    # ICÔNE
-    # --------------------------------------------------------
-
-    icone = tk.Label(
-        popup,
-        text="📈",
-        font=("Segoe UI Emoji", 34),
-        bg=theme["panneau"],
-        fg=theme["texte"]
-    )
-
-    icone.pack(
-        pady=(20, 5)
-    )
-
-    # --------------------------------------------------------
-    # MESSAGE
-    # --------------------------------------------------------
-
-    message = tk.Label(
-        popup,
-        text=(
-            "La Bourse de Paris est fermée ce week-end.\n\n"
-            "Les cotations reprendront lundi."
-        ),
-        font=("Segoe UI", 12),
-        bg=theme["panneau"],
-        fg=theme["texte"],
-        justify="center"
-    )
-
-    message.pack(
-        pady=5
-    )
-
-    # --------------------------------------------------------
-    # BOUTON
-    # --------------------------------------------------------
-
-    bouton_ok = tk.Button(
-        popup,
-        text="OK",
-        command=popup.destroy,
-
-        font=("Segoe UI", 10, "bold"),
-
-        bg=theme["accent"],
-        fg="white",
-
-        activebackground=theme["accent_hover"],
-        activeforeground="white",
-
-        bd=0,
-        relief="flat",
-
-        padx=35,
-        pady=8,
-
-        highlightthickness=0,
-
-        cursor="hand2"
-    )
-
-    bouton_ok.pack(
-        pady=15
-    )
-
-
-# ============================================================
-# APPLICATION DU THÈME
-# ============================================================
-
-def appliquer_theme():
-
-    global theme
-
-    theme = themes[
-        theme_actuel
-    ]
-
-    fenetre.configure(
-        bg=theme["fond"]
-    )
-
-    canvas_fond.configure(
-        bg=theme["fond"]
-    )
-
-    conteneur.configure(
-        bg=theme["fond_bas"]
-    )
-
-    cadre_titre.configure(
-        bg=theme["fond_bas"]
-    )
-
-    titre.configure(
-        bg=theme["fond_bas"],
-        fg=theme["texte"]
-    )
-
-    sous_titre.configure(
-        bg=theme["fond_bas"],
-        fg=theme["texte_secondaire"]
-    )
-
-    barre_controles.configure(
-        bg=theme["fond_bas"]
-    )
-
-    label_periode.configure(
-        bg=theme["fond_bas"],
-        fg=theme["texte"]
-    )
-
-    cadre_graphique.configure(
-        bg=theme["panneau"]
-    )
-
-    legende_externe.configure(
-        bg=theme["panneau2"]
-    )
-
-    legende_interne.configure(
-        bg=theme["panneau2"]
-    )
-
-    barre_bas.configure(
-        bg=theme["fond_bas"]
-    )
-
-    statut.configure(
-        bg=theme["fond_bas"],
-        fg=theme["texte_secondaire"]
-    )
-
-    # Recoloration des boutons Canvas
-
-    for widget in barre_controles.winfo_children():
-
-        if isinstance(
-            widget,
-            tk.Canvas
-        ):
-
-            try:
-
-                largeur = int(
-                    widget.cget("width")
-                )
-
-                hauteur = int(
-                    widget.cget("height")
-                )
-
-                # Récupération du texte existant
-                objets = widget.find_all()
-
-                texte = ""
-
-                for objet in objets:
-
-                    if widget.type(objet) == "text":
-
-                        texte = widget.itemcget(
-                            objet,
-                            "text"
-                        )
-
-                        break
-
-                if texte:
-
-                    dessiner_bouton(
-                        widget,
-                        largeur,
-                        hauteur,
-                        theme["verre"],
-                        texte,
-                        theme["texte"]
-                    )
-
-            except Exception:
-                pass
-
-    for widget in barre_bas.winfo_children():
-
-        if isinstance(
-            widget,
-            tk.Canvas
-        ):
-
-            try:
-
-                largeur = int(
-                    widget.cget("width")
-                )
-
-                hauteur = int(
-                    widget.cget("height")
-                )
-
-                objets = widget.find_all()
-
-                texte = ""
-
-                for objet in objets:
-
-                    if widget.type(objet) == "text":
-
-                        texte = widget.itemcget(
-                            objet,
-                            "text"
-                        )
-
-                        break
-
-                if texte:
-
-                    dessiner_bouton(
-                        widget,
-                        largeur,
-                        hauteur,
-                        theme["verre"],
-                        texte,
-                        theme["texte"]
-                    )
-
-            except Exception:
-                pass
-
-    dessiner_fond()
-
-    reconstruire_legende()
-
-    if ax is not None:
-
-        ax.set_facecolor(
-            theme["graph_fond"]
-        )
-
-        figure.patch.set_facecolor(
-            theme["graph_fond"]
-        )
-
-        for bordure in ax.spines.values():
-
-            bordure.set_color(
-                theme["graph_grille"]
-            )
-
-        ax.tick_params(
-            colors=theme["texte_secondaire"]
-        )
-
-        ax.grid(
-            True,
-            color=theme["graph_grille"],
-            alpha=0.35
-        )
-
-        ax.title.set_color(
-            theme["texte"]
-        )
-
-        ax.yaxis.label.set_color(
-            theme["texte_secondaire"]
-        )
-
-        canvas_graphique.draw_idle()
-
-
-# ============================================================
-# REDIMENSIONNEMENT DU GRAPHIQUE
-# ============================================================
-
-def adapter_graphique(event=None):
-
-    try:
-
-        largeur = cadre_graphique.winfo_width()
-        hauteur = cadre_graphique.winfo_height()
-
-        if largeur < 300 or hauteur < 250:
-            return
-
-        largeur_pouces = max(
-            largeur / 120,
-            8
-        )
-
-        hauteur_pouces = max(
-            hauteur / 120,
-            4.5
-        )
-
-        figure.set_size_inches(
-            largeur_pouces,
-            hauteur_pouces,
-            forward=False
-        )
-
-        canvas_graphique.draw_idle()
-
-    except Exception:
-        pass
-
-
-cadre_graphique.bind(
-    "<Configure>",
-    adapter_graphique
-)
 
 
 # ============================================================
@@ -2295,29 +2114,14 @@ cadre_graphique.bind(
 
 appliquer_theme()
 
-reconstruire_legende()
 
-# Première actualisation
-fenetre.after(
-    300,
-    actualiser
-)
+actualiser()
 
-# Popup du week-end
-fenetre.after(
-    1200,
-    afficher_popup_weekend
-)
 
-# Actualisation automatique toutes les heures
 fenetre.after(
     60 * 60 * 1000,
     actualisation_automatique
 )
 
-
-# ============================================================
-# LANCEMENT
-# ============================================================
 
 fenetre.mainloop()
