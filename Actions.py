@@ -69,12 +69,12 @@ actions_selectionnees = {
 
 periodes = {
     "24 h": {
-        "period": "5d",
+        "period": "2d",
         "interval": "5m"
     },
 
     "1 semaine": {
-        "period": "1mo",
+        "period": "5d",
         "interval": "15m"
     },
 
@@ -976,7 +976,9 @@ def mettre_a_jour_cartes_actions():
         vide.pack(pady=25)
         return
 
-    for nom in sorted(actions_selectionnees):
+    for nom in actions_cac40:
+        if nom not in actions_selectionnees:
+            continue
         carte = tk.Frame(
             cartes_actions,
             bg=theme["verre"],
@@ -1065,8 +1067,8 @@ cadre_graphique.pack_propagate(False)
 # ============================================================
 
 figure, ax = plt.subplots(
-    figsize=(18, 10),
-    dpi=180
+    figsize=(14, 8),
+    dpi=120
 )
 
 ax.set_facecolor(theme["panneau"])
@@ -1311,6 +1313,31 @@ def changer_theme():
 # TÉLÉCHARGEMENT DES DONNÉES
 # ============================================================
 
+def filtrer_donnees_periode(data):
+    """Ne conserve que les cotations réellement disponibles dans la fenêtre choisie."""
+    if data is None or data.empty:
+        return data
+    try:
+        result = data.copy()
+        index = pd.DatetimeIndex(result.index)
+        if index.tz is not None:
+            index = index.tz_convert(None)
+        result.index = index
+
+        durees = {
+            "24 h": timedelta(hours=24),
+            "1 semaine": timedelta(days=7),
+            "1 mois": timedelta(days=30),
+            "1 an": timedelta(days=365),
+        }
+        if periode_actuelle in durees:
+            debut = pd.Timestamp(datetime.now() - durees[periode_actuelle])
+            result = result.loc[result.index >= debut]
+        return result
+    except Exception as erreur:
+        print("Erreur filtrage période :", erreur)
+        return data
+
 def recuperer_donnees():
 
     configuration = periodes[
@@ -1347,7 +1374,7 @@ def recuperer_donnees():
             )
 
 
-            donnees[nom] = data
+            donnees[nom] = filtrer_donnees_periode(data)
 
 
         except Exception as erreur:
@@ -1472,7 +1499,7 @@ def configurer_dates_graphique(ax, toutes_les_dates):
         ax.set_xlim(debut, fin)
 
         ax.xaxis.set_major_locator(
-            mdates.HourLocator(interval=2)
+            mdates.HourLocator(interval=3)
         )
 
         ax.xaxis.set_major_formatter(
@@ -1513,7 +1540,7 @@ def configurer_dates_graphique(ax, toutes_les_dates):
         ax.set_xlim(debut, fin)
 
         ax.xaxis.set_major_locator(
-            mdates.DayLocator(interval=3)
+            mdates.DayLocator(interval=4)
         )
 
         ax.xaxis.set_major_formatter(
@@ -1783,7 +1810,7 @@ def afficher_graphique(donnees):
         )
 
     # ========================================================
-    # TITRE
+    # TITRE / AXES / GRILLE
     # ========================================================
 
     ax.set_title(
@@ -1792,30 +1819,20 @@ def afficher_graphique(donnees):
         fontsize=18,
         fontweight="bold",
         loc="left",
-        pad=18
+        pad=12
     )
-
-
-    # ========================================================
-    # AXES
-    # ========================================================
 
     ax.set_xlabel(
         "",
         color=theme["texte_secondaire"]
     )
 
-
     ax.set_ylabel(
         "Cours (€)",
         color=theme["texte_secondaire"],
-        fontsize=10
+        fontsize=10,
+        labelpad=10
     )
-
-
-    # ========================================================
-    # GRILLE
-    # ========================================================
 
     ax.grid(
         True,
@@ -1825,7 +1842,6 @@ def afficher_graphique(donnees):
         linewidth=0.7
     )
 
-
     ax.grid(
         True,
         which="minor",
@@ -1834,22 +1850,18 @@ def afficher_graphique(donnees):
         linewidth=0.45
     )
 
-
     ax.minorticks_on()
 
-
-    # ========================================================
-    # AXES
-    # ========================================================
-
+    # Les graduations sont volontairement espacées et les textes ne
+    # tournent pas : cela évite tout chevauchement sur les petites fenêtres.
     ax.tick_params(
         axis="x",
         colors=theme["texte_secondaire"],
-        labelsize=9,
+        labelsize=8,
         length=0,
-        pad=9
+        pad=7,
+        rotation=0
     )
-
 
     ax.tick_params(
         axis="y",
@@ -1859,64 +1871,65 @@ def afficher_graphique(donnees):
         pad=8
     )
 
-
     for bordure in ax.spines.values():
-
         bordure.set_visible(False)
-
 
     # ========================================================
     # LÉGENDE
     # ========================================================
 
     if lignes:
+        nombre = len(lignes)
+        colonnes = min(nombre, 4)
+        lignes_legende = (nombre + colonnes - 1) // colonnes
 
         legende = ax.legend(
-            loc="upper right",
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.015),
+            bbox_transform=ax.transAxes,
             frameon=False,
-            fontsize=10,
-            ncol=min(
-                len(lignes),
-                4
-            )
+            fontsize=9,
+            ncol=colonnes,
+            columnspacing=1.4,
+            handlelength=2.4,
+            handletextpad=0.5,
+            labelspacing=0.7,
+            borderaxespad=0
         )
 
-
         for texte in legende.get_texts():
-
-            texte.set_color(
-                theme["texte"]
-            )
-
+            texte.set_color(theme["texte"])
 
     # ========================================================
     # DERNIÈRE MISE À JOUR
     # ========================================================
 
-    heure = datetime.now().strftime(
-        "%H:%M:%S"
-    )
+    heure = datetime.now().strftime("%H:%M:%S")
 
-
+    # Placée sous l'axe mais dans une zone réservée par subplots_adjust.
     ax.text(
         0.0,
-        -0.09,
+        -0.16,
         f"Dernière mise à jour : {heure}",
         transform=ax.transAxes,
         color=theme["texte_secondaire"],
-        fontsize=8
+        fontsize=8,
+        ha="left",
+        va="top",
+        clip_on=False
     )
 
-
+    # Marges généreuses : gauche pour le label Y, haut pour la légende,
+    # bas pour les dates + l'heure de mise à jour.
     figure.subplots_adjust(
-        left=0.055,
+        left=0.095,
         right=0.985,
-        top=0.91,
-        bottom=0.13
+        top=0.78 if lignes else 0.90,
+        bottom=0.20
     )
-
 
     canvas_graphique.draw_idle()
+
 
 
 # ============================================================
@@ -2089,35 +2102,36 @@ canvas_graphique.mpl_connect(
 # ACTUALISATION
 # ============================================================
 
-def actualiser():
+actualisation_en_cours = False
 
+
+def actualiser():
+    global actualisation_en_cours
+
+    if actualisation_en_cours:
+        return
+
+    actualisation_en_cours = True
     bouton_actualiser.itemconfig(
         bouton_actualiser.texte_id,
         text="↻   Chargement..."
     )
-
-
     statut.configure(
-        text=(
-            f"Récupération des données "
-            f"• {periode_actuelle}"
-        )
+        text=f"Récupération des données • {periode_actuelle}"
     )
 
-
     def travail():
-
-        donnees = recuperer_donnees()
-
-
-        fenetre.after(
-            0,
-            lambda:
-                terminer_actualisation(
-                    donnees
-                )
-        )
-
+        try:
+            donnees = recuperer_donnees()
+            fenetre.after(
+                0,
+                lambda: terminer_actualisation(donnees)
+            )
+        except Exception as erreur:
+            fenetre.after(
+                0,
+                lambda: terminer_actualisation({}, erreur)
+            )
 
     threading.Thread(
         target=travail,
@@ -2129,27 +2143,24 @@ def actualiser():
 # FIN ACTUALISATION
 # ============================================================
 
-def terminer_actualisation(donnees):
+def terminer_actualisation(donnees, erreur=None):
+    global actualisation_en_cours
 
-    afficher_graphique(
-        donnees
-    )
+    try:
+        if erreur is not None:
+            print("Erreur actualisation :", erreur)
+            statut.configure(text="⚠ Erreur pendant le téléchargement")
+            return
 
-
-    bouton_actualiser.itemconfig(
-        bouton_actualiser.texte_id,
-        text="↻   Actualiser"
-    )
-
-
-    heure = datetime.now().strftime(
-        "%H:%M:%S"
-    )
-
-
-    statut.configure(
-        text=f"● Données mises à jour à {heure}"
-    )
+        afficher_graphique(donnees)
+        heure = datetime.now().strftime("%H:%M:%S")
+        statut.configure(text=f"● Données mises à jour à {heure}")
+    finally:
+        actualisation_en_cours = False
+        bouton_actualiser.itemconfig(
+            bouton_actualiser.texte_id,
+            text="↻   Actualiser"
+        )
 
 
 # ============================================================
@@ -2299,64 +2310,60 @@ def ouvrir_selection_actions():
 
 
     variables = {}
+    boutons_actions = {}
 
-
-    for index, nom in enumerate(
-        actions_cac40
-    ):
-
-        variable = tk.BooleanVar(
-            value=(
-                nom
-                in actions_selectionnees
+    def actualiser_style_action(nom):
+        bouton = boutons_actions[nom]
+        if variables[nom].get():
+            bouton.configure(
+                text=f"✓   {nom}",
+                bg=theme["verre"],
+                fg=theme["texte"],
+                activebackground=theme["verre_hover"],
+                activeforeground=theme["texte"]
             )
-        )
+        else:
+            bouton.configure(
+                text=f"     {nom}",
+                bg=theme["panneau"],
+                fg=theme["texte_secondaire"],
+                activebackground=theme["verre_hover"],
+                activeforeground=theme["texte"]
+            )
 
+    def basculer_action(nom):
+        variables[nom].set(not variables[nom].get())
+        actualiser_style_action(nom)
 
-        variables[nom] = variable
+    for index, nom in enumerate(actions_cac40):
+        variables[nom] = tk.BooleanVar(value=(nom in actions_selectionnees))
 
-
-        case = tk.Checkbutton(
+        bouton = tk.Button(
             cadre_cases,
-            text=nom,
-            variable=variable,
+            font=("Segoe UI", 10, "bold"),
             anchor="w",
-            font=(
-                "Segoe UI",
-                10
-            ),
-            bg=theme["panneau"],
-            fg=theme["texte"],
-            activebackground=theme["panneau"],
-            activeforeground=theme["texte"],
-            selectcolor=theme["verre"],
             relief="flat",
             bd=0,
+            highlightthickness=1,
+            highlightbackground=theme["bordure"],
+            highlightcolor=theme["accent2"],
+            cursor="hand2",
             padx=18,
-            pady=8
+            pady=10,
+            command=lambda n=nom: basculer_action(nom)
         )
-
-
-        case.grid(
+        bouton.grid(
             row=index // 2,
             column=index % 2,
             sticky="ew",
-            padx=12,
-            pady=2
+            padx=8,
+            pady=5
         )
+        boutons_actions[nom] = bouton
+        actualiser_style_action(nom)
 
-
-    cadre_cases.columnconfigure(
-        0,
-        weight=1
-    )
-
-
-    cadre_cases.columnconfigure(
-        1,
-        weight=1
-    )
-
+    cadre_cases.columnconfigure(0, weight=1, uniform="actions")
+    cadre_cases.columnconfigure(1, weight=1, uniform="actions")
 
     def maj_scroll(event=None):
 
@@ -2391,10 +2398,9 @@ def ouvrir_selection_actions():
 
 
     def selectionner_tout():
-
-        for variable in variables.values():
-
+        for nom, variable in variables.items():
             variable.set(True)
+            actualiser_style_action(nom)
 
 
     bouton_tout = creer_bouton_verre(
@@ -2412,10 +2418,9 @@ def ouvrir_selection_actions():
 
 
     def deselectionner_tout():
-
-        for variable in variables.values():
-
+        for nom, variable in variables.items():
             variable.set(False)
+            actualiser_style_action(nom)
 
 
     bouton_aucun = creer_bouton_verre(
@@ -2499,34 +2504,33 @@ fond.bind(
 # ============================================================
 
 def adapter_graphique(event=None):
+    """Adapte la figure sans recréer les widgets ni écraser les marges."""
 
     largeur = cadre_graphique.winfo_width()
-
     hauteur = cadre_graphique.winfo_height()
 
-
-    if largeur < 50:
+    if largeur < 120 or hauteur < 120:
         return
 
-
-    if hauteur < 50:
-        return
-
-
-    dpi = 180
-
-
-    figure.set_dpi(
-        dpi
-    )
-
-
+    # DPI raisonnable : le rendu reste net sans provoquer une figure
+    # gigantesque qui accentuerait les problèmes de placement.
+    dpi = 120
+    figure.set_dpi(dpi)
     figure.set_size_inches(
-        largeur / dpi,
-        hauteur / dpi,
+        max(6.0, largeur / dpi),
+        max(4.0, hauteur / dpi),
         forward=False
     )
 
+    # Recalcule les marges après chaque redimensionnement.
+    if lignes:
+        figure.subplots_adjust(
+            left=0.095, right=0.985, top=0.78, bottom=0.20
+        )
+    else:
+        figure.subplots_adjust(
+            left=0.095, right=0.985, top=0.90, bottom=0.20
+        )
 
     canvas_graphique.draw_idle()
 
