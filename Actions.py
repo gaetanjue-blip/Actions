@@ -7,6 +7,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime, timedelta
 import threading
 import numpy as np
+import pandas as pd
 
 
 # ============================================================
@@ -307,7 +308,8 @@ def dessiner_degrade():
 
 conteneur = tk.Frame(
     fond,
-    bd=0
+    bd=0,
+    bg=theme["fond_bas"]
 )
 
 conteneur.place(
@@ -1048,8 +1050,14 @@ cadre_graphique = tk.Frame(
 cadre_graphique.pack(
     side="left",
     fill="both",
-    expand=True
+    expand=True,
+    padx=(0, 0),
+    pady=0
 )
+
+# Garantit que la zone du graphique conserve une vraie place même
+# pendant les premières phases de redimensionnement.
+cadre_graphique.pack_propagate(False)
 
 
 # ============================================================
@@ -1059,6 +1067,18 @@ cadre_graphique.pack(
 figure, ax = plt.subplots(
     figsize=(18, 10),
     dpi=180
+)
+
+ax.set_facecolor(theme["panneau"])
+figure.patch.set_facecolor(theme["panneau"])
+ax.text(
+    0.5, 0.5,
+    "Chargement des données…",
+    transform=ax.transAxes,
+    ha="center",
+    va="center",
+    color=theme["texte_secondaire"],
+    fontsize=14
 )
 
 
@@ -1693,7 +1713,8 @@ def afficher_graphique(donnees):
                 linewidth=5,
                 alpha=0.035,
                 solid_capstyle="round",
-                antialiased=True
+                antialiased=True,
+                picker=False
             )
 
             # Les points sont uniquement les vraies cotations.
@@ -2242,11 +2263,21 @@ def ouvrir_selection_actions():
     )
 
 
-    canvas_selection.create_window(
+    fenetre_selection.update_idletasks()
+
+    selection_window_id = canvas_selection.create_window(
         (0, 0),
         window=cadre_cases,
         anchor="nw"
     )
+
+    def ajuster_largeur_cases(event=None):
+        canvas_selection.itemconfigure(
+            selection_window_id,
+            width=max(1, canvas_selection.winfo_width())
+        )
+
+    canvas_selection.bind("<Configure>", ajuster_largeur_cases)
 
 
     canvas_selection.configure(
