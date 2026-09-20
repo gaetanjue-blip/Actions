@@ -1,4 +1,4 @@
-imimport tkinter as tk
+import tkinter as tk
 from tkinter import messagebox
 import pandas as pd
 import yfinance as yf
