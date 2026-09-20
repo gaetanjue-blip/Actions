@@ -1,3 +1,4 @@
+
 import tkinter as tk
 from tkinter import messagebox
 import yfinance as yf
@@ -216,7 +217,6 @@ fenetre = tk.Tk()
 
 fenetre.title(NOM_APPLICATION)
 
-# Adaptation automatique à la taille de l'écran
 fenetre.state("zoomed")
 
 fenetre.configure(
@@ -670,7 +670,6 @@ canvas_actions.bind(
     molette_actions
 )
 
-
 cadre_actions.bind(
     "<MouseWheel>",
     molette_actions
@@ -707,7 +706,6 @@ ax.set_facecolor(
     theme["graphique"]
 )
 
-# Pas de grille au lancement
 ax.grid(False)
 
 
@@ -801,23 +799,34 @@ def afficher_actions_sidebar():
 
                 df = donnees_actuelles[nom]
 
-                prix = float(
-                    df["Close"].iloc[-1]
-                )
+                # ====================================================
+                # CORRECTION NaN
+                # ====================================================
 
-                prix_label = tk.Label(
-                    carte,
-                    text=f"{prix:.2f} €",
-                    font=("Segoe UI", 13, "bold"),
-                    fg=theme["accent"],
-                    bg=theme["verre"]
-                )
+                valeurs_prix = pd.to_numeric(
+                    df["Close"],
+                    errors="coerce"
+                ).dropna()
 
-                prix_label.pack(
-                    anchor="w",
-                    padx=12,
-                    pady=(0, 9)
-                )
+                if not valeurs_prix.empty:
+
+                    prix = float(
+                        valeurs_prix.iloc[-1]
+                    )
+
+                    prix_label = tk.Label(
+                        carte,
+                        text=f"{prix:.2f} €",
+                        font=("Segoe UI", 13, "bold"),
+                        fg=theme["accent"],
+                        bg=theme["verre"]
+                    )
+
+                    prix_label.pack(
+                        anchor="w",
+                        padx=12,
+                        pady=(0, 9)
+                    )
 
             except Exception:
                 pass
@@ -854,6 +863,24 @@ def preparer_dataframe(df):
     if "Close" not in df.columns:
         return None
 
+    # ========================================================
+    # CORRECTION NaN
+    # ========================================================
+    # On convertit Close en nombres puis on supprime les
+    # lignes qui ne contiennent pas de prix valide.
+
+    df["Close"] = pd.to_numeric(
+        df["Close"],
+        errors="coerce"
+    )
+
+    df = df.dropna(
+        subset=["Close"]
+    )
+
+    if df.empty:
+        return None
+
     try:
 
         if df.index.tz is not None:
@@ -868,6 +895,9 @@ def preparer_dataframe(df):
     df = df[
         df.index.weekday < 5
     ]
+
+    if df.empty:
+        return None
 
     return df
 
@@ -1130,9 +1160,23 @@ def actualiser_graphique():
 
         try:
 
-            dates = df.index
+            # ====================================================
+            # CORRECTION NaN
+            # ====================================================
 
-            valeurs = df["Close"].astype(float)
+            valeurs = pd.to_numeric(
+                df["Close"],
+                errors="coerce"
+            )
+
+            masque = valeurs.notna()
+
+            valeurs = valeurs[masque]
+
+            dates = df.index[masque]
+
+            if valeurs.empty:
+                continue
 
             dates_courbe, valeurs_courbe = (
                 construire_courbe_continue(
@@ -1158,10 +1202,12 @@ def actualiser_graphique():
 
             lignes[nom] = ligne
 
+            # Dernier prix réellement disponible
             dernier_prix = float(
                 valeurs.iloc[-1]
             )
 
+            # Dernière date correspondant au dernier prix
             derniere_date = dates[-1]
 
             ax.scatter(
@@ -1201,10 +1247,6 @@ def actualiser_graphique():
         bordure.set_color(
             theme["bordure"]
         )
-
-    # ========================================================
-    # GRILLE UNIQUEMENT SI DES DONNÉES SONT DISPONIBLES
-    # ========================================================
 
     if lignes:
 
@@ -1284,7 +1326,23 @@ def telecharger_donnees():
             ", ".join(tickers)
         )
 
-        if periode_actuelle == "Depuis toujours":
+        # ====================================================
+        # CORRECTION POUR "1 AN"
+        # ====================================================
+
+        if periode_actuelle == "1 an":
+
+            df = yf.download(
+                tickers,
+                period="1y",
+                interval="1d",
+                auto_adjust=False,
+                progress=False,
+                threads=True,
+                group_by="column"
+            )
+
+        elif periode_actuelle == "Depuis toujours":
 
             df = yf.download(
                 tickers,
@@ -1342,7 +1400,10 @@ def telecharger_donnees():
 
                         if action_df is not None:
 
-                            if periode_actuelle != "Depuis toujours":
+                            if periode_actuelle not in [
+                                "Depuis toujours",
+                                "1 an"
+                            ]:
 
                                 action_df = action_df[
                                     (action_df.index >= debut)
@@ -1382,7 +1443,10 @@ def telecharger_donnees():
 
                         if action_df is not None:
 
-                            if periode_actuelle != "Depuis toujours":
+                            if periode_actuelle not in [
+                                "Depuis toujours",
+                                "1 an"
+                            ]:
 
                                 action_df = action_df[
                                     (action_df.index >= debut)
@@ -1411,7 +1475,10 @@ def telecharger_donnees():
 
                 if df is not None:
 
-                    if periode_actuelle != "Depuis toujours":
+                    if periode_actuelle not in [
+                        "Depuis toujours",
+                        "1 an"
+                    ]:
 
                         df = df[
                             (df.index >= debut)
@@ -1938,6 +2005,7 @@ def ouvrir_selection():
         )
 
         for nom in boutons_actions:
+
             mettre_a_jour_bouton(nom)
 
     def tout_deselectionner():
@@ -1953,6 +2021,7 @@ def ouvrir_selection():
         )
 
         for nom in boutons_actions:
+
             mettre_a_jour_bouton(nom)
 
     bouton_tout = tk.Button(
@@ -2121,10 +2190,6 @@ def appliquer_theme():
         fg=theme["texte_secondaire"]
     )
 
-    # ========================================================
-    # MISE À JOUR DES BOUTONS DE LA BARRE
-    # ========================================================
-
     if bouton_actions is not None:
 
         bouton_actions.configure(
@@ -2222,3 +2287,4 @@ fenetre.after(
 # ============================================================
 
 fenetre.mainloop()
+
