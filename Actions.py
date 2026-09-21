@@ -1,4 +1,3 @@
-
 import tkinter as tk
 from tkinter import messagebox
 import yfinance as yf
@@ -17,11 +16,14 @@ import pandas as pd
 
 NOM_APPLICATION = "CacVision"
 
+# Fuseaux horaires
 PARIS = ZoneInfo("Europe/Paris")
+REUNION = ZoneInfo("Indian/Reunion")
 
-# ACTUALISATION AUTOMATIQUE : 1 HEURE
+# Actualisation toutes les 1 heure
 INTERVALLE_ACTUALISATION = 60 * 60 * 1000
 
+# Vérification du marché toutes les 30 secondes
 INTERVALLE_MARCHE = 30000
 
 
@@ -149,10 +151,6 @@ THEME_CLAIR = {
 }
 
 
-# ============================================================
-# MODE CLAIR AU LANCEMENT
-# ============================================================
-
 theme = THEME_CLAIR
 
 
@@ -207,8 +205,6 @@ bouton_actions = None
 bouton_periode = None
 bouton_theme = None
 bouton_actualiser = None
-
-fond_a_dessiner = True
 
 
 # ============================================================
@@ -450,12 +446,9 @@ def creer_bouton_verre(
         bouton.delete("all")
 
         if bouton.est_survole:
-
             couleur = theme["verre_hover"]
             bordure = theme["accent2"]
-
         else:
-
             couleur = theme["verre"]
             bordure = theme["bordure"]
 
@@ -483,13 +476,11 @@ def creer_bouton_verre(
     def survol(event=None):
 
         bouton.est_survole = True
-
         dessiner()
 
     def normal(event=None):
 
         bouton.est_survole = False
-
         dessiner()
 
     bouton.bind(
@@ -655,18 +646,6 @@ def molette_actions(event):
     )
 
 
-def activer_molette(widget):
-
-    widget.bind(
-        "<MouseWheel>",
-        molette_actions
-    )
-
-    for enfant in widget.winfo_children():
-
-        activer_molette(enfant)
-
-
 canvas_actions.bind(
     "<MouseWheel>",
     molette_actions
@@ -829,14 +808,6 @@ def afficher_actions_sidebar():
             except Exception:
                 pass
 
-        activer_molette(carte)
-
-    cadre_actions.update_idletasks()
-
-    canvas_actions.configure(
-        scrollregion=canvas_actions.bbox("all")
-    )
-
 
 # ============================================================
 # PRÉPARATION DES DONNÉES
@@ -853,7 +824,6 @@ def preparer_dataframe(df):
 
         try:
             df.columns = df.columns.get_level_values(0)
-
         except Exception:
             pass
 
@@ -871,6 +841,13 @@ def preparer_dataframe(df):
 
     if df.empty:
         return None
+
+    # ========================================================
+    # IMPORTANT :
+    # Les données de Yahoo restent dans le fuseau de Paris.
+    # On ne les convertit PAS en Réunion ici.
+    # Le graphique fera lui-même l'affichage en Réunion.
+    # ========================================================
 
     try:
 
@@ -894,10 +871,13 @@ def preparer_dataframe(df):
 
 
 # ============================================================
-# COURBE
+# COURBE CONTINUE
 # ============================================================
 
-def construire_courbe_continue(dates, valeurs):
+def construire_courbe_continue(
+    dates,
+    valeurs
+):
 
     if len(dates) == 0:
         return [], []
@@ -936,7 +916,8 @@ def construire_courbe_continue(dates, valeurs):
                 ):
 
                     courbe_dates.append(
-                        prochaine_date - timedelta(seconds=1)
+                        prochaine_date
+                        - timedelta(seconds=1)
                     )
 
                     courbe_valeurs.append(
@@ -965,12 +946,19 @@ def dernier_jour_de_bourse(date):
 
 
 # ============================================================
-# DATES
+# DATES DE LA PÉRIODE
 # ============================================================
 
 def obtenir_dates_periode():
 
-    maintenant = datetime.now(PARIS)
+    # ========================================================
+    # IMPORTANT :
+    # Les dates utilisées pour Yahoo sont en HEURE DE PARIS.
+    # ========================================================
+
+    maintenant = datetime.now(
+        PARIS
+    )
 
     if periode_actuelle == "24 h":
 
@@ -1007,11 +995,16 @@ def obtenir_dates_periode():
                 minute=30
             )
 
-        elif maintenant <= fermeture:
+            return ouverture, fermeture
 
-            fermeture = maintenant
+        elif maintenant > fermeture:
 
-        return ouverture, fermeture
+            return ouverture, fermeture
+
+        else:
+
+            return ouverture, maintenant
+
 
     elif periode_actuelle == "1 semaine":
 
@@ -1028,6 +1021,7 @@ def obtenir_dates_periode():
 
         return debut, maintenant
 
+
     elif periode_actuelle == "1 mois":
 
         debut = maintenant.replace(
@@ -1039,6 +1033,7 @@ def obtenir_dates_periode():
         )
 
         return debut, maintenant
+
 
     elif periode_actuelle == "1 an":
 
@@ -1053,46 +1048,73 @@ def obtenir_dates_periode():
 
         return debut, maintenant
 
+
     return None, maintenant
 
 
 # ============================================================
-# DATES DU GRAPHIQUE
+# CONFIGURATION DE L'AXE DU GRAPHIQUE
 # ============================================================
 
 def configurer_dates_graphique():
 
     debut, fin = obtenir_dates_periode()
 
+    # ========================================================
+    # IMPORTANT :
+    # Les données sont en heure de Paris.
+    #
+    # Matplotlib affiche maintenant les heures avec le fuseau
+    # de La Réunion grâce à tz=REUNION.
+    # ========================================================
+
     if periode_actuelle == "24 h":
 
         ax.xaxis.set_major_locator(
-            mdates.HourLocator(interval=1)
+            mdates.HourLocator(
+                interval=1
+            )
         )
 
         ax.xaxis.set_major_formatter(
-            mdates.DateFormatter("%H:%M")
+            mdates.DateFormatter(
+                "%H:%M",
+                tz=REUNION
+            )
         )
+
 
     elif periode_actuelle == "1 semaine":
 
         ax.xaxis.set_major_locator(
-            mdates.DayLocator(interval=1)
+            mdates.DayLocator(
+                interval=1
+            )
         )
 
         ax.xaxis.set_major_formatter(
-            mdates.DateFormatter("%d/%m")
+            mdates.DateFormatter(
+                "%d/%m",
+                tz=REUNION
+            )
         )
+
 
     elif periode_actuelle == "1 mois":
 
         ax.xaxis.set_major_locator(
-            mdates.DayLocator(interval=5)
+            mdates.DayLocator(
+                interval=5
+            )
         )
 
         ax.xaxis.set_major_formatter(
-            mdates.DateFormatter("%d/%m")
+            mdates.DateFormatter(
+                "%d/%m",
+                tz=REUNION
+            )
         )
+
 
     elif periode_actuelle == "1 an":
 
@@ -1101,8 +1123,12 @@ def configurer_dates_graphique():
         )
 
         ax.xaxis.set_major_formatter(
-            mdates.DateFormatter("%m/%Y")
+            mdates.DateFormatter(
+                "%m/%Y",
+                tz=REUNION
+            )
         )
+
 
     else:
 
@@ -1111,8 +1137,12 @@ def configurer_dates_graphique():
         )
 
         ax.xaxis.set_major_formatter(
-            mdates.DateFormatter("%m/%Y")
+            mdates.DateFormatter(
+                "%m/%Y",
+                tz=REUNION
+            )
         )
+
 
     if debut is not None:
 
@@ -1123,7 +1153,7 @@ def configurer_dates_graphique():
 
 
 # ============================================================
-# GRAPHIQUE
+# ACTUALISATION DU GRAPHIQUE
 # ============================================================
 
 def actualiser_graphique():
@@ -1210,6 +1240,7 @@ def actualiser_graphique():
                 erreur
             )
 
+
     ax.set_title(
         "Évolution des actions",
         color=theme["texte"],
@@ -1218,20 +1249,24 @@ def actualiser_graphique():
         pad=15
     )
 
+
     ax.set_ylabel(
         "Prix (€)",
         color=theme["texte_secondaire"]
     )
 
+
     ax.tick_params(
         colors=theme["texte_secondaire"]
     )
+
 
     for bordure in ax.spines.values():
 
         bordure.set_color(
             theme["bordure"]
         )
+
 
     if lignes:
 
@@ -1243,6 +1278,7 @@ def actualiser_graphique():
     else:
 
         ax.grid(False)
+
 
     if lignes:
 
@@ -1272,6 +1308,7 @@ def actualiser_graphique():
             bottom=0.12
         )
 
+
     configurer_dates_graphique()
 
     fig.autofmt_xdate()
@@ -1282,7 +1319,7 @@ def actualiser_graphique():
 
 
 # ============================================================
-# TÉLÉCHARGEMENT OPTIMISÉ
+# TÉLÉCHARGEMENT DES DONNÉES
 # ============================================================
 
 def telecharger_donnees():
@@ -1295,7 +1332,9 @@ def telecharger_donnees():
 
     debut, fin = obtenir_dates_periode()
 
-    noms = list(actions_selectionnees)
+    noms = list(
+        actions_selectionnees
+    )
 
     tickers = [
         actions_cac40[nom]
@@ -1307,7 +1346,7 @@ def telecharger_donnees():
     try:
 
         print(
-            "Téléchargement groupé:",
+            "Téléchargement:",
             ", ".join(tickers)
         )
 
@@ -1323,17 +1362,19 @@ def telecharger_donnees():
                 group_by="column"
             )
 
+
         elif periode_actuelle == "Depuis toujours":
 
             df = yf.download(
                 tickers,
                 period="max",
-                interval=interval,
+                interval="1d",
                 auto_adjust=False,
                 progress=False,
                 threads=True,
                 group_by="column"
             )
+
 
         else:
 
@@ -1352,13 +1393,21 @@ def telecharger_donnees():
                 group_by="column"
             )
 
+
         if df is None or df.empty:
 
             return {}
 
-        if isinstance(df.columns, pd.MultiIndex):
 
-            niveaux = df.columns.get_level_values
+        if isinstance(
+            df.columns,
+            pd.MultiIndex
+        ):
+
+            niveaux = (
+                df.columns.get_level_values
+            )
+
 
             if "Close" in niveaux(0):
 
@@ -1375,8 +1424,10 @@ def telecharger_donnees():
                             ]
                         })
 
-                        action_df = preparer_dataframe(
-                            action_df
+                        action_df = (
+                            preparer_dataframe(
+                                action_df
+                            )
                         )
 
                         if action_df is not None:
@@ -1392,9 +1443,13 @@ def telecharger_donnees():
                                     (action_df.index <= fin)
                                 ]
 
+
                             if not action_df.empty:
 
-                                nouvelles_donnees[nom] = action_df
+                                nouvelles_donnees[
+                                    nom
+                                ] = action_df
+
 
                     except Exception as erreur:
 
@@ -1402,6 +1457,7 @@ def telecharger_donnees():
                             f"Erreur {nom}:",
                             erreur
                         )
+
 
             else:
 
@@ -1418,8 +1474,10 @@ def telecharger_donnees():
                             ]
                         })
 
-                        action_df = preparer_dataframe(
-                            action_df
+                        action_df = (
+                            preparer_dataframe(
+                                action_df
+                            )
                         )
 
                         if action_df is not None:
@@ -1435,9 +1493,13 @@ def telecharger_donnees():
                                     (action_df.index <= fin)
                                 ]
 
+
                             if not action_df.empty:
 
-                                nouvelles_donnees[nom] = action_df
+                                nouvelles_donnees[
+                                    nom
+                                ] = action_df
+
 
                     except Exception as erreur:
 
@@ -1446,13 +1508,16 @@ def telecharger_donnees():
                             erreur
                         )
 
+
         else:
 
             if len(noms) == 1:
 
                 nom = noms[0]
 
-                df = preparer_dataframe(df)
+                df = preparer_dataframe(
+                    df
+                )
 
                 if df is not None:
 
@@ -1467,16 +1532,21 @@ def telecharger_donnees():
                             (df.index <= fin)
                         ]
 
+
                     if not df.empty:
 
-                        nouvelles_donnees[nom] = df
+                        nouvelles_donnees[
+                            nom
+                        ] = df
+
 
     except Exception as erreur:
 
         print(
-            "Erreur téléchargement groupé:",
+            "Erreur téléchargement:",
             erreur
         )
+
 
     return nouvelles_donnees
 
@@ -1507,7 +1577,7 @@ def actualiser_donnees():
 
 
 # ============================================================
-# ARRIÈRE-PLAN
+# TÉLÉCHARGEMENT EN ARRIÈRE-PLAN
 # ============================================================
 
 def telecharger_en_arriere_plan():
@@ -1520,6 +1590,7 @@ def telecharger_en_arriere_plan():
         nouvelles_donnees = (
             telecharger_donnees()
         )
+
 
         def terminer():
 
@@ -1535,7 +1606,7 @@ def telecharger_en_arriere_plan():
                 actualiser_graphique()
 
                 maintenant = datetime.now(
-                    PARIS
+                    REUNION
                 )
 
                 statut_label.config(
@@ -1549,16 +1620,21 @@ def telecharger_en_arriere_plan():
             else:
 
                 statut_label.config(
-                    text="Impossible de récupérer les données",
+                    text=(
+                        "Impossible de récupérer "
+                        "les données"
+                    ),
                     fg=theme["danger"]
                 )
 
             actualisation_en_cours = False
 
+
         fenetre.after(
             0,
             terminer
         )
+
 
     except Exception as erreur:
 
@@ -1566,6 +1642,7 @@ def telecharger_en_arriere_plan():
             "Erreur générale:",
             erreur
         )
+
 
         def afficher_erreur():
 
@@ -1577,6 +1654,7 @@ def telecharger_en_arriere_plan():
             )
 
             actualisation_en_cours = False
+
 
         fenetre.after(
             0,
@@ -1604,6 +1682,11 @@ def actualisation_automatique():
 
 def verifier_marche():
 
+    # ========================================================
+    # Le marché est toujours calculé en heure de Paris.
+    # Python gère automatiquement le changement été/hiver.
+    # ========================================================
+
     maintenant = datetime.now(
         PARIS
     )
@@ -1613,8 +1696,14 @@ def verifier_marche():
         + maintenant.minute
     )
 
-    ouverture = 9 * 60
-    fermeture = 17 * 60 + 30
+    ouverture = (
+        9 * 60
+    )
+
+    fermeture = (
+        17 * 60 + 30
+    )
+
 
     if maintenant.weekday() >= 5:
 
@@ -1627,7 +1716,11 @@ def verifier_marche():
             fg=theme["texte_secondaire"]
         )
 
-    elif heure < ouverture or heure >= fermeture:
+
+    elif (
+        heure < ouverture
+        or heure >= fermeture
+    ):
 
         live_point.config(
             fg=theme["danger"]
@@ -1637,6 +1730,7 @@ def verifier_marche():
             text=" Marché fermé",
             fg=theme["texte_secondaire"]
         )
+
 
     else:
 
@@ -1648,6 +1742,7 @@ def verifier_marche():
             text=" Marché ouvert",
             fg=theme["texte"]
         )
+
 
     fenetre.after(
         INTERVALLE_MARCHE,
@@ -1689,6 +1784,7 @@ def ouvrir_menu_periode():
         except Exception:
             pass
 
+
     menu_periode = tk.Toplevel(
         fenetre
     )
@@ -1712,12 +1808,14 @@ def ouvrir_menu_periode():
         bg=theme["panneau"]
     )
 
+
     for nom in periodes:
 
         bouton = tk.Button(
             menu_periode,
             text=nom,
-            command=lambda n=nom: choisir_periode(n),
+            command=lambda n=nom:
+                choisir_periode(n),
             bg=theme["verre"],
             fg=theme["texte"],
             activebackground=theme["verre_hover"],
@@ -1757,6 +1855,7 @@ def ouvrir_selection():
         except Exception:
             pass
 
+
     fenetre_selection = tk.Toplevel(
         fenetre
     )
@@ -1778,6 +1877,7 @@ def ouvrir_selection():
         bg=theme["panneau"]
     )
 
+
     titre_selection = tk.Label(
         fenetre_selection,
         text="Actions du CAC 40",
@@ -1789,6 +1889,7 @@ def ouvrir_selection():
     titre_selection.pack(
         pady=(20, 5)
     )
+
 
     info = tk.Label(
         fenetre_selection,
@@ -1802,6 +1903,7 @@ def ouvrir_selection():
         pady=(0, 15)
     )
 
+
     cadre_scroll = tk.Frame(
         fenetre_selection,
         bg=theme["panneau"]
@@ -1812,6 +1914,7 @@ def ouvrir_selection():
         expand=True,
         padx=25
     )
+
 
     canvas_scroll = tk.Canvas(
         cadre_scroll,
@@ -1840,6 +1943,7 @@ def ouvrir_selection():
         expand=True
     )
 
+
     cadre_interieur = tk.Frame(
         canvas_scroll,
         bg=theme["panneau"]
@@ -1852,24 +1956,29 @@ def ouvrir_selection():
         width=610
     )
 
+
     def mettre_a_jour_scroll(event=None):
 
         canvas_scroll.configure(
             scrollregion=canvas_scroll.bbox("all")
         )
 
+
     cadre_interieur.bind(
         "<Configure>",
         mettre_a_jour_scroll
     )
 
+
     boutons_actions = {}
+
 
     def mettre_a_jour_bouton(nom):
 
         bouton = boutons_actions[nom]
 
         bouton.delete("all")
+
 
         if nom in actions_selectionnees:
 
@@ -1890,6 +1999,7 @@ def ouvrir_selection():
                 font=("Segoe UI", 10, "bold")
             )
 
+
         else:
 
             bouton.create_rectangle(
@@ -1908,6 +2018,7 @@ def ouvrir_selection():
                 fill=theme["texte"],
                 font=("Segoe UI", 10, "bold")
             )
+
 
     def cliquer_action(nom):
 
@@ -1929,9 +2040,11 @@ def ouvrir_selection():
             nom
         )
 
+
     noms = list(
         actions_cac40.keys()
     )
+
 
     for i, nom in enumerate(noms):
 
@@ -1964,8 +2077,9 @@ def ouvrir_selection():
         bouton.bind(
             "<Button-1>",
             lambda event, n=nom:
-            cliquer_action(n)
+                cliquer_action(n)
         )
+
 
     bas = tk.Frame(
         fenetre_selection,
@@ -1977,6 +2091,7 @@ def ouvrir_selection():
         pady=15
     )
 
+
     def tout_selectionner():
 
         actions_selectionnees.clear()
@@ -1987,7 +2102,10 @@ def ouvrir_selection():
 
         for nom in boutons_actions:
 
-            mettre_a_jour_bouton(nom)
+            mettre_a_jour_bouton(
+                nom
+            )
+
 
     def tout_deselectionner():
 
@@ -2003,7 +2121,10 @@ def ouvrir_selection():
 
         for nom in boutons_actions:
 
-            mettre_a_jour_bouton(nom)
+            mettre_a_jour_bouton(
+                nom
+            )
+
 
     bouton_tout = tk.Button(
         bas,
@@ -2024,6 +2145,7 @@ def ouvrir_selection():
         padx=5
     )
 
+
     bouton_aucun = tk.Button(
         bas,
         text="Tout désélectionner",
@@ -2043,6 +2165,7 @@ def ouvrir_selection():
         padx=5
     )
 
+
     def valider():
 
         global fenetre_selection
@@ -2052,6 +2175,7 @@ def ouvrir_selection():
         fenetre_selection = None
 
         actualiser_donnees()
+
 
     bouton_valider = tk.Button(
         bas,
@@ -2075,7 +2199,7 @@ def ouvrir_selection():
 
 
 # ============================================================
-# THÈME
+# CHANGER LE THÈME
 # ============================================================
 
 def changer_theme():
@@ -2171,6 +2295,7 @@ def appliquer_theme():
         fg=theme["texte_secondaire"]
     )
 
+
     if bouton_actions is not None:
 
         bouton_actions.configure(
@@ -2178,6 +2303,7 @@ def appliquer_theme():
         )
 
         bouton_actions.dessiner()
+
 
     if bouton_periode is not None:
 
@@ -2187,6 +2313,7 @@ def appliquer_theme():
 
         bouton_periode.dessiner()
 
+
     if bouton_theme is not None:
 
         bouton_theme.configure(
@@ -2195,6 +2322,7 @@ def appliquer_theme():
 
         bouton_theme.dessiner()
 
+
     if bouton_actualiser is not None:
 
         bouton_actualiser.configure(
@@ -2202,6 +2330,7 @@ def appliquer_theme():
         )
 
         bouton_actualiser.dessiner()
+
 
     dessiner_fond()
 
@@ -2219,6 +2348,7 @@ bouton_actions = creer_bouton_verre(
     175
 )
 
+
 bouton_periode = creer_bouton_verre(
     barre_commandes,
     lambda: periode_actuelle + "   ▾",
@@ -2226,12 +2356,14 @@ bouton_periode = creer_bouton_verre(
     150
 )
 
+
 bouton_theme = creer_bouton_verre(
     barre_commandes,
     lambda: "☼   Thème",
     changer_theme,
     130
 )
+
 
 bouton_actualiser = creer_bouton_verre(
     barre_commandes,
@@ -2268,5 +2400,4 @@ fenetre.after(
 # ============================================================
 
 fenetre.mainloop()
-
 
