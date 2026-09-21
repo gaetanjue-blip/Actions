@@ -19,7 +19,9 @@ NOM_APPLICATION = "CacVision"
 
 PARIS = ZoneInfo("Europe/Paris")
 
-INTERVALLE_ACTUALISATION = 120000
+# ACTUALISATION AUTOMATIQUE : 1 HEURE
+INTERVALLE_ACTUALISATION = 60 * 60 * 1000
+
 INTERVALLE_MARCHE = 30000
 
 
@@ -799,10 +801,6 @@ def afficher_actions_sidebar():
 
                 df = donnees_actuelles[nom]
 
-                # ====================================================
-                # CORRECTION NaN
-                # ====================================================
-
                 valeurs_prix = pd.to_numeric(
                     df["Close"],
                     errors="coerce"
@@ -854,7 +852,6 @@ def preparer_dataframe(df):
     if isinstance(df.columns, pd.MultiIndex):
 
         try:
-
             df.columns = df.columns.get_level_values(0)
 
         except Exception:
@@ -862,12 +859,6 @@ def preparer_dataframe(df):
 
     if "Close" not in df.columns:
         return None
-
-    # ========================================================
-    # CORRECTION NaN
-    # ========================================================
-    # On convertit Close en nombres puis on supprime les
-    # lignes qui ne contiennent pas de prix valide.
 
     df["Close"] = pd.to_numeric(
         df["Close"],
@@ -1160,10 +1151,6 @@ def actualiser_graphique():
 
         try:
 
-            # ====================================================
-            # CORRECTION NaN
-            # ====================================================
-
             valeurs = pd.to_numeric(
                 df["Close"],
                 errors="coerce"
@@ -1202,12 +1189,10 @@ def actualiser_graphique():
 
             lignes[nom] = ligne
 
-            # Dernier prix réellement disponible
             dernier_prix = float(
                 valeurs.iloc[-1]
             )
 
-            # Dernière date correspondant au dernier prix
             derniere_date = dates[-1]
 
             ax.scatter(
@@ -1325,10 +1310,6 @@ def telecharger_donnees():
             "Téléchargement groupé:",
             ", ".join(tickers)
         )
-
-        # ====================================================
-        # CORRECTION POUR "1 AN"
-        # ====================================================
 
         if periode_actuelle == "1 an":
 
@@ -2287,4 +2268,5 @@ fenetre.after(
 # ============================================================
 
 fenetre.mainloop()
+
 
