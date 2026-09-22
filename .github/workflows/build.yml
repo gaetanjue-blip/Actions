@@ -1,4 +1,4 @@
-name: Construire Actions.exe
+name: Construire CacVision.exe
 
 on:
   workflow_dispatch:
@@ -22,12 +22,12 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Construire Actions.exe
+      - name: Construire CacVision.exe
         run: |
-          pyinstaller --onefile --windowed --name Actions Actions.py
+          pyinstaller --onefile --windowed --name CacVision --icon=cacvision.ico cacvision.py
 
-      - name: Récupérer Actions.exe
+      - name: Récupérer CacVision.exe
         uses: actions/upload-artifact@v4
         with:
-          name: Actions-Windows
-          path: dist/Actions.exe
+          name: CacVision-Windows
+          path: dist/CacVision.exe
