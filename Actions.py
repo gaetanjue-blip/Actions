@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
-import yfinance as yf
+import yfinance as yf 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
