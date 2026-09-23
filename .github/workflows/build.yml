@@ -1,4 +1,4 @@
-```yaml
+
 name: Construire CACVision.exe
 
 on:
@@ -50,4 +50,4 @@ jobs:
         with:
           name: CACVision-Windows
           path: CACVision-Windows.zip
-```
+
