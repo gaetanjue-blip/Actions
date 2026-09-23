@@ -1,4 +1,5 @@
-name: Construire CacVision.exe
+```yaml
+name: Construire CACVision.exe
 
 on:
   workflow_dispatch:
@@ -8,7 +9,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Télécharger le projet
+      - name: Récupérer le code
         uses: actions/checkout@v4
 
       - name: Installer Python
@@ -19,15 +20,34 @@ jobs:
       - name: Installer les dépendances
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
           pip install pyinstaller
+          pip install yfinance
+          pip install matplotlib
+          pip install pandas
 
-      - name: Construire CacVision.exe
+      - name: Vérifier les fichiers
         run: |
-          pyinstaller --onefile --windowed --name CacVision --icon=cacvision.ico Actions.py
+          dir
+          if (!(Test-Path "CACVision.py")) {
+            Write-Error "CACVision.py introuvable"
+            exit 1
+          }
+          if (!(Test-Path "icon.ico")) {
+            Write-Error "icon.ico introuvable"
+            exit 1
+          }
 
-      - name: Récupérer CacVision.exe
+      - name: Construire CACVision.exe
+        run: |
+          pyinstaller --onefile --windowed --name CACVision --icon=icon.ico CACVision.py
+
+      - name: Mettre le fichier dans un ZIP
+        run: |
+          Compress-Archive -Path dist\CACVision.exe -DestinationPath CACVision-Windows.zip
+
+      - name: Publier CACVision.exe
         uses: actions/upload-artifact@v4
         with:
-          name: CacVision-Windows
-          path: dist/CacVision.exe
+          name: CACVision-Windows
+          path: CACVision-Windows.zip
+```
