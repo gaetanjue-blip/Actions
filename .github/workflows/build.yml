@@ -28,8 +28,8 @@ jobs:
       - name: Vérifier les fichiers
         run: |
           dir
-          if (!(Test-Path "CACVision.py")) {
-            Write-Error "CACVision.py introuvable"
+          if (!(Test-Path "Actions.py")) {
+            Write-Error "Actions.py introuvable"
             exit 1
           }
           if (!(Test-Path "icon.ico")) {
